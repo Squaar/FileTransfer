@@ -7,11 +7,17 @@
     transmission to receipt of the acknowledgement, and reports that along
     with the average overall transmission rate.
     
-    Written by _______________ for CS 450 HW1 January 2014
+    Written by Matt Dumford for CS 450 HW1 January 2014
+	mdumfo2@uic.edu
 */
 
 #include <cstdlib>
 #include <iostream>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <stdio.h>
+#include <netdb.h>
+#include <string.h>
 
 #include "CS450Header.h"
 
@@ -28,6 +34,25 @@ int main(int argc, char *argv[])
         File to transfer.  Use OPEN(2) to verify that the file can be opened
         for reading, and ask again if necessary.
     */
+
+	if(argc < 2){
+		printf("Not enough arguments");
+		exit(-1);
+	}
+
+	string server = argv[1];	
+
+	string port;
+	if(argc > 2)
+		port = argv[2];
+	else
+		port = "54321";
+
+	string relay;
+	if(argc > 3)
+		relay = argv[3];
+	else
+		relay = "none";
     
     // Use FSTAT and MMAP to map the file to a memory buffer.  That will let the
     // virtual memory system page it in as needed instead of reading it byte
@@ -36,6 +61,34 @@ int main(int argc, char *argv[])
     // Open a Connection to the server ( or relay )  TCP for the first HW
     // call SOCKET and CONNECT and verify that the connection opened.
     
+	// protocols are in /etc/protocols
+	// 0-IP --beej uses this i think
+	// 6-TCP
+	struct addrinfo hints;
+	struct addrinfo *res;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_STREAM;
+
+	if(getaddrinfo(server.c_str(), port.c_str(), &hints, &res) !=0){
+		perror("Error getting addrinfo");
+		exit(-1);
+	}
+	
+	int sockfd = socket(res->ai_family, res->ai_socktype, res-> ai_protocol);
+	if(sockfd == -1){
+		perror("Error creating socket");
+		exit(-1);
+	}
+
+	if(connect(sockfd, res->ai_addr, res->ai_addrlen) != 0){
+		//server might just not be ready?
+		perror("Error connecting");
+		exit(-1);
+	}
+
+
     // Note the time before beginning transmission
     
     // Create a CS450Header object, fill in the fields, and use SEND to write

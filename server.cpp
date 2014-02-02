@@ -1,5 +1,6 @@
 /*  server.cpp
-
+	
+	This program receives a file from a remote client and sends back an
     acknowledgement after the entire file has been received.
     
     Two possible options for closing the connection:
@@ -7,12 +8,18 @@
         (2) Hold the connection open waiting for additional files / commands.
         The "persistent" field in the header indicates the client's preference.
         
-    Written by _________________ January 2014 for CS 361
+    Written by Matt Dumford January 2014 for CS 361
+	mdumfo2@uic.edu
 */
 
 
 #include <cstdlib>
 #include <iostream>
+#include <sys/types.h>
+#include <stdio.h>
+#include <sys/socket.h>
+#include <string.h>
+#include <netdb.h>
 
 #include "CS450Header.h"
 
@@ -24,20 +31,64 @@ int main(int argc, char *argv[])
     // User Input
     
     /* Check for the following from command-line args, or ask the user:
-        
         Port number to listen to.  Default = 54321.
     */
-    
+
+	string port;
+	if(argc > 1)
+		port = argv[1];
+	else
+		port = "54321";
+	 
     //  Call SOCKET to create a listening socket
     //  Call BIND to bind the socket to a particular port number
     //  Call LISTEN to set the socket to listening for new connection requests.
     
+	struct addrinfo hints;
+	struct addrinfo *res;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_PASSIVE;
+
+	if(getaddrinfo(NULL, port.c_str(), &hints, &res) !=0){
+		perror("Error getting addrinfo");
+		exit(-1);
+	}
+
+	int listenSocket = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+	if(listenSocket == -1){
+		perror("Error creating listening socket");
+		exit(-1);
+	}
+
+	if(bind(listenSocket, res->ai_addr, res->ai_addrlen) != 0){
+		perror("Error binding");
+		exit(-1);
+	}
+
+	if(listen(listenSocket, 20) != 0){
+		perror("Error listening");
+		exit(-1);
+	}
+
+	cout << "Listening on port " << port << ".\n";
+
     // For HW1 only handle one connection at a time
     
     // Call ACCEPT to accept a new incoming connection request.
     // The result will be a new socket, which will be used for all further
     // communications with this client.
     
+	struct sockaddr_storage storage;
+	socklen_t storage_size = sizeof(storage);
+	int sockfd = accept(listenSocket, (struct sockaddr *) &storage, &storage_size);
+	if(sockfd == -1){
+		perror("Error accepting");
+		exit(-1);
+	}
+
     // Call RECV to read in one CS450Header struct
     
     // Then call RECV again to read in the bytes of the incoming file.

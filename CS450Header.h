@@ -8,7 +8,7 @@
 
 typedef struct{
 	//COMPILER YELLS ABOUT VARIABLE NAMED VERSION
-    //int version = 1;  // Initial version.  Later versions may have more fields
+    //int version = 2;  // Initial version.  Later versions may have more fields
     long int UIN; // Packets with unrecognized UINs will be dropped
     int HW_number; // e.g. 1 for HW1, etc. 
     int transactionNumber;  // To identify multiple parts of one transaction.
@@ -16,6 +16,7 @@ typedef struct{
         filename[ 20 ];  // the name of the file being transmitted.
                          // i.e. the name where the server should store it.
     unsigned int From_IP, To_IP;  // Ultimate destination, not the relay
+	int packetType; // 1 = file transfer; 2 = acknowledgement
     unsigned long nbytes; // Number of bytes of data to follow the header
     // float garbleChance, dropChance, dupeChance; // For later HW
     int relayCommand; // 1 = close connection
