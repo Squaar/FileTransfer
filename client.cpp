@@ -18,6 +18,9 @@
 #include <stdio.h>
 #include <netdb.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+#include <fcntl.h>
 
 #include "CS450Header.h"
 
@@ -57,6 +60,30 @@ int main(int argc, char *argv[])
     // Use FSTAT and MMAP to map the file to a memory buffer.  That will let the
     // virtual memory system page it in as needed instead of reading it byte
     // by byte.
+
+	cout << "What file would you like to send?\n";
+	string filePath;
+	cin >> filePath;
+
+	int fd = open(filePath.c_str(), O_RDONLY);
+	if(fd == -1){
+		perror("Error opening file");
+		exit(-1);
+	}
+
+	struct stat stats;
+	if(fstat(fd, &stats) < 0){
+		perror("Error in fstat");
+		exit(-1);
+	}
+
+	char *file = (char *) mmap(NULL, stats.st_size, PROT_READ, MAP_SHARED, fd, 0);
+	if(file == MAP_FAILED){
+		perror("Error in mmap");
+		exit(-1);
+	}
+
+	printf("%s\n", file);
     
     // Open a Connection to the server ( or relay )  TCP for the first HW
     // call SOCKET and CONNECT and verify that the connection opened.
