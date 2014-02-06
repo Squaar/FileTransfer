@@ -81,39 +81,82 @@ int main(int argc, char *argv[])
     // The result will be a new socket, which will be used for all further
     // communications with this client.
     
-	struct sockaddr_storage storage;
-	socklen_t storage_size = sizeof(storage);
-	int sockfd = accept(listenSocket, (struct sockaddr *) &storage, &storage_size);
-	if(sockfd == -1){
-		perror("Error accepting");
-		exit(-1);
-	}
+	while(1){ //keep accepting new requests forever
 
-    // Call RECV to read in one CS450Header struct
-   
-	CS450Header header;
+		struct sockaddr_storage storage;
+		socklen_t storage_size = sizeof(storage);
+		int sockfd = accept(listenSocket, (struct sockaddr *) &storage, &storage_size);
+		if(sockfd == -1){
+			perror("Error accepting");
+			exit(-1);
+		}
+	
+	    // Call RECV to read in one CS450Header struct
 
-	int bytesRecieved = recv(sockfd, &header, sizeof(header), 0);
-	if(bytesRecieved == -1){
-		perror("Error recieving");
-		exit(-1);
-	}
+		bool persist = true;
+		while(persist){
+		
+			CS450Header header;
+		
+			long bytesRecieved = recv(sockfd, &header, sizeof(header), 0);
+			if(bytesRecieved == -1){
+				perror("Error recieving header");
+				exit(-1);
+			}
+		
+		    // Then call RECV again to read in the bytes of the incoming file.
+		    //      If "saveFile" is non-zero, save the file to disk under the name
+		    //      "filename".  Otherwise just read in the bytes and discard them.
+		    //      If the total # of bytes exceeds a limit, multiple RECVs are needed.
+		
+			char file[header.nbytes];
+		   
+			bytesRecieved = recv(sockfd, file, header.nbytes, 0);
+			if(bytesRecieved == -1){
+				perror("Error recieving file");
+				exit(-1);
+			}
 
-	printf("%s\n", header.ACCC);
- 
-    // Then call RECV again to read in the bytes of the incoming file.
-    //      If "saveFile" is non-zero, save the file to disk under the name
-    //      "filename".  Otherwise just read in the bytes and discard them.
-    //      If the total # of bytes exceeds a limit, multiple RECVs are needed.
-    
-    // Send back an acknowledgement to the client, indicating the number of 
-    // bytes received.  Other information may also be included.
-    
-    // If "persistent" is zero, then include a close command in the header
-    // for the acknowledgement and close the socket.  Go back to ACCEPT to 
-    // handle additional requests.  Otherwise keep the connection open and
-    // read in another Header for another incoming file from this client.
-    
-    
+			printf("FILE RECIEVED:\n\n%s\n", file);
+			if(header.saveFile){
+				
+			}
+		 
+		    // Send back an acknowledgement to the client, indicating the number of 
+		    // bytes received.  Other information may also be included.
+		
+			CS450Header response;
+			memset(&response, 0, sizeof(response));
+		
+			response.UIN = 675005893;
+			response.HW_number = 1;
+
+			const char *ACCC = "mdumfo2";
+			memcpy(response.ACCC, ACCC, strlen(ACCC));
+
+			response.packetType = 2;
+			response.bytesRecieved = bytesRecieved;
+		    
+		    // If "persistent" is zero, then include a close command in the header
+		    // for the acknowledgement and close the socket.  Go back to ACCEPT to 
+		    // handle additional requests.  Otherwise keep the connection open and
+		    // read in another Header for another incoming file from this client.
+		    
+			if(!header.persistent){
+				response.relayCommand = 1;
+				persist = false;
+			}
+			else
+				persist = true;
+
+			long bytesSent = send(sockfd, &response, sizeof(response), 0);
+			if(bytesSent == -1){
+				perror("Error sending response header");
+				exit(-1);
+			}
+			
+		}//end while(persist) for keeping connection open
+	} //end while(1) for accepting   
+
     return EXIT_SUCCESS;
 }

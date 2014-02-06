@@ -84,8 +84,6 @@ int main(int argc, char *argv[])
 		exit(-1);
 	}
 
-	cout <<"poop\n";
-
     // Open a Connection to the server ( or relay )  TCP for the first HW
     // call SOCKET and CONNECT and verify that the connection opened.
     
@@ -130,7 +128,7 @@ int main(int argc, char *argv[])
 	header.HW_number = 1;
 	header.transactionNumber = 1;
 
-	char *ACCC = "mdumfo2";
+	const char *ACCC = "mdumfo2";
 	memcpy(header.ACCC, ACCC, strlen(ACCC));
 
 	//header.filename =  //NEED TO GET NAME
@@ -138,9 +136,10 @@ int main(int argc, char *argv[])
 	//header.To_IP = 
 	header.packetType = 1;
 	header.nbytes = fileSize;
+	header.persistent = 0;
 	
-	size_t bytesSent = send(sockfd, &header, sizeof(header), 0);
-	if(bytesSent != sizeof(header)){
+	long bytesSent = send(sockfd, &header, sizeof(header), 0);
+	if(bytesSent == -1){
 		perror("Something went wrong sending file");
 		exit(-1);
 	}	
@@ -149,9 +148,9 @@ int main(int argc, char *argv[])
     // Then multiple SEND commands may be necessary.
    
 	bytesSent = send(sockfd, file, fileSize, 0);
-	if(bytesSent != sizeof(header)){
+	if(bytesSent == -1){
 		perror("Something went wrong sending file");
-		//exit(-1);
+		exit(-1);
 	}
  
     // Use RECV to read in a CS450Header from the server, which should contain

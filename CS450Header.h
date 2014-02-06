@@ -28,7 +28,9 @@ typedef struct{
     // I.e. you can add additional fields, but if you do, reduce the size of the
     // reserved array by an equal number of bytes.
 
-    char reserved[ 1000 ];
+	unsigned long bytesRecieved; //to report back to the client how many bytes were recieved
+
+    char reserved[ 1000-sizeof(bytesRecieved) ];
     
     
 } CS450Header;
