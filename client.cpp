@@ -38,12 +38,11 @@ int main(int argc, char *argv[])
         for reading, and ask again if necessary.
     */
 
-	if(argc < 2){
-		printf("Not enough arguments");
-		exit(-1);
-	}
-
-	string server = argv[1];	
+	string server;
+	if(argc > 1)
+		server = argv[1];	
+	else
+		server = "127.0.0.1";
 
 	string port;
 	if(argc > 2)
@@ -77,14 +76,16 @@ int main(int argc, char *argv[])
 		exit(-1);
 	}
 
-	char *file = (char *) mmap(NULL, stats.st_size, PROT_READ, MAP_SHARED, fd, 0);
+	size_t fileSize = stats.st_size;
+
+	char *file = (char *) mmap(NULL, fileSize, PROT_READ, MAP_SHARED, fd, 0);
 	if(file == MAP_FAILED){
 		perror("Error in mmap");
 		exit(-1);
 	}
 
-	printf("%s\n", file);
-    
+	cout <<"poop\n";
+
     // Open a Connection to the server ( or relay )  TCP for the first HW
     // call SOCKET and CONNECT and verify that the connection opened.
     
@@ -117,13 +118,42 @@ int main(int argc, char *argv[])
 
 
     // Note the time before beginning transmission
+
+	time_t start = time(NULL);
     
     // Create a CS450Header object, fill in the fields, and use SEND to write
     // it to the socket.
     
+	CS450Header header;
+	memset(&header, 0, sizeof(header));
+
+	header.HW_number = 1;
+	header.transactionNumber = 1;
+
+	char *ACCC = "mdumfo2";
+	memcpy(header.ACCC, ACCC, strlen(ACCC));
+
+	//header.filename =  //NEED TO GET NAME
+	//header.From_IP = 
+	//header.To_IP = 
+	header.packetType = 1;
+	header.nbytes = fileSize;
+	
+	size_t bytesSent = send(sockfd, &header, sizeof(header), 0);
+	if(bytesSent != sizeof(header)){
+		perror("Something went wrong sending file");
+		exit(-1);
+	}	
+
     // Use SEND to send the data file.  If it is too big to send in one gulp
     // Then multiple SEND commands may be necessary.
-    
+   
+	bytesSent = send(sockfd, file, fileSize, 0);
+	if(bytesSent != sizeof(header)){
+		perror("Something went wrong sending file");
+		//exit(-1);
+	}
+ 
     // Use RECV to read in a CS450Header from the server, which should contain
     // some acknowledgement information.  
     
@@ -131,6 +161,10 @@ int main(int argc, char *argv[])
     // bandwidth, and report them to the screen along with the size of the file
     // and output echo of all user input data.
     
+	time_t end = time(NULL);
+
+	cout << end-start << " seconds.\n";
+
     // When the job is done, either the client or the server must transmit a
     // CS450Header containing the command code to close the connection, and 
     // having transmitted it, close their end of the socket.  If a relay is 
@@ -144,6 +178,5 @@ int main(int argc, char *argv[])
     
     // When done, report overall statistics and exit.
     
-    system("PAUSE");
     return EXIT_SUCCESS;
 }

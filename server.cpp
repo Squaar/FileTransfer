@@ -90,7 +90,17 @@ int main(int argc, char *argv[])
 	}
 
     // Call RECV to read in one CS450Header struct
-    
+   
+	CS450Header header;
+
+	int bytesRecieved = recv(sockfd, &header, sizeof(header), 0);
+	if(bytesRecieved == -1){
+		perror("Error recieving");
+		exit(-1);
+	}
+
+	printf("%s\n", header.ACCC);
+ 
     // Then call RECV again to read in the bytes of the incoming file.
     //      If "saveFile" is non-zero, save the file to disk under the name
     //      "filename".  Otherwise just read in the bytes and discard them.
@@ -105,6 +115,5 @@ int main(int argc, char *argv[])
     // read in another Header for another incoming file from this client.
     
     
-    system("PAUSE");
     return EXIT_SUCCESS;
 }

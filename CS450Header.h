@@ -27,7 +27,7 @@ typedef struct{
     // of the struct does not change.
     // I.e. you can add additional fields, but if you do, reduce the size of the
     // reserved array by an equal number of bytes.
-    
+
     char reserved[ 1000 ];
     
     
