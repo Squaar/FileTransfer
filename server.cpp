@@ -20,10 +20,15 @@
 #include <sys/socket.h>
 #include <string.h>
 #include <netdb.h>
+#include <vector>
 
 #include "CS450Header.h"
 
 using namespace std;
+
+void newConnection(int listenSocket, std::vector<int> *sockets, fd_set *sockSet); //accepts new connections
+int handleData(int sockfd); //retruns 1 if connection was peristant, 0 if not persistant
+int max(std::vector<int> v); // returns max value in vector of ints
 
 int main(int argc, char *argv[])
 {
@@ -73,90 +78,132 @@ int main(int argc, char *argv[])
 		exit(-1);
 	}
 
-	cout << "Listening on port " << port << ".\n";
+	cout << "Listening on port " << port << ".\n\n";
 
     // For HW1 only handle one connection at a time
     
     // Call ACCEPT to accept a new incoming connection request.
     // The result will be a new socket, which will be used for all further
     // communications with this client.
-    
-	while(1){ //keep accepting new requests forever
 
-		struct sockaddr_storage storage;
-		socklen_t storage_size = sizeof(storage);
-		int sockfd = accept(listenSocket, (struct sockaddr *) &storage, &storage_size);
-		if(sockfd == -1){
-			perror("Error accepting");
+    std::vector<int> sockets;
+    fd_set sockSet;
+    FD_ZERO(&sockSet);
+
+    sockets.push_back(listenSocket);
+    FD_SET(listenSocket, &sockSet);
+    
+	while(1){ //keep selecting forever
+		int readySockets = select(max(sockets)+1, &sockSet, NULL, NULL, NULL);
+
+		if(readySockets < 0){
+			perror("Error selecting");
 			exit(-1);
 		}
-	
-	    // Call RECV to read in one CS450Header struct
 
-		bool persist = true;
-		while(persist){
-		
-			CS450Header header;
-		
-			long bytesRecieved = recv(sockfd, &header, sizeof(header), 0);
-			if(bytesRecieved == -1){
-				perror("Error recieving header");
-				exit(-1);
+		unsigned int i;
+		for(i=0; i<sockets.size(); i++){
+			if(FD_ISSET(sockets[i], &sockSet)){
+				if(sockets[i] == listenSocket)
+					newConnection(listenSocket, &sockets, &sockSet);
+				else{
+					if(!handleData(sockets[i])){
+						close(sockets[i]);
+						FD_CLR(sockets[i], &sockSet);
+						sockets.erase(sockets.begin() + i);
+					}
+				}
 			}
-		
-		    // Then call RECV again to read in the bytes of the incoming file.
-		    //      If "saveFile" is non-zero, save the file to disk under the name
-		    //      "filename".  Otherwise just read in the bytes and discard them.
-		    //      If the total # of bytes exceeds a limit, multiple RECVs are needed.
-		
-			char file[header.nbytes];
-		   
-			bytesRecieved = recv(sockfd, file, header.nbytes, 0);
-			if(bytesRecieved == -1){
-				perror("Error recieving file");
-				exit(-1);
-			}
+		}
+	}
 
-			printf("FILE RECIEVED:\n\n%s\n", file);
-			if(header.saveFile){
-				
-			}
-		 
-		    // Send back an acknowledgement to the client, indicating the number of 
-		    // bytes received.  Other information may also be included.
-		
-			CS450Header response;
-			memset(&response, 0, sizeof(response));
-		
-			response.UIN = 675005893;
-			response.HW_number = 1;
-
-			const char *ACCC = "mdumfo2";
-			memcpy(response.ACCC, ACCC, strlen(ACCC));
-
-			response.packetType = 2;
-			response.bytesRecieved = bytesRecieved;
-		    
-		    // If "persistent" is zero, then include a close command in the header
-		    // for the acknowledgement and close the socket.  Go back to ACCEPT to 
-		    // handle additional requests.  Otherwise keep the connection open and
-		    // read in another Header for another incoming file from this client.
-		    
-			if(!header.persistent){
-				response.relayCommand = 1;
-				persist = false;
-			}
-			else
-				persist = true;
-
-			long bytesSent = send(sockfd, &response, sizeof(response), 0);
-			if(bytesSent == -1){
-				perror("Error sending response header");
-				exit(-1);
-			}
-			
-		}//end while(persist) for keeping connection open
-	} //end while(1) for accepting   
+	cout << "You shouldn't be here... something broke!\n";
 
     return EXIT_SUCCESS;
+}
+
+void newConnection(int listenSocket, std::vector<int> *sockets, fd_set *sockSet){
+	struct sockaddr_storage storage;
+	socklen_t storage_size = sizeof(storage);
+	int sockfd = accept(listenSocket, (struct sockaddr *) &storage, &storage_size);
+	if(sockfd == -1){
+		perror("Error accepting");
+		exit(-1);
+	}
+
+	cout << "New connection established.\n";
+
+	sockets->push_back(sockfd);
+	FD_SET(sockfd, sockSet);
+}
+
+int handleData(int sockfd){
+	// Call RECV to read in one CS450Header struct
+	CS450Header header;
+
+	long bytesRecieved = recv(sockfd, &header, sizeof(header), 0);
+	if(bytesRecieved == -1){
+		perror("Error recieving header");
+		exit(-1);
+	}
+
+    // Then call RECV again to read in the bytes of the incoming file.
+    //      If "saveFile" is non-zero, save the file to disk under the name
+    //      "filename".  Otherwise just read in the bytes and discard them.
+    //      If the total # of bytes exceeds a limit, multiple RECVs are needed.
+
+	char file[header.nbytes];
+   
+	bytesRecieved = recv(sockfd, file, header.nbytes, 0);
+	if(bytesRecieved == -1){
+		perror("Error recieving file");
+		exit(-1);
+	}
+
+	printf("FILE RECIEVED:\n\n%s\n", file);
+	if(header.saveFile){
+		
+	}
+ 
+    // Send back an acknowledgement to the client, indicating the number of 
+    // bytes received.  Other information may also be included.
+
+	CS450Header response;
+	memset(&response, 0, sizeof(response));
+
+	response.UIN = 675005893;
+	response.HW_number = 1;
+
+	const char *ACCC = "mdumfo2";
+	memcpy(response.ACCC, ACCC, strlen(ACCC));
+
+	response.packetType = 2;
+	response.bytesRecieved = bytesRecieved;
+    
+    // If "persistent" is zero, then include a close command in the header
+    // for the acknowledgement and close the socket.  Go back to ACCEPT to 
+    // handle additional requests.  Otherwise keep the connection open and
+    // read in another Header for another incoming file from this client.
+    
+	if(header.persistent){
+		response.relayCommand = 0;
+	}
+	else
+		response.relayCommand = 1;
+
+	long bytesSent = send(sockfd, &response, sizeof(response), 0);
+	if(bytesSent == -1){
+		perror("Error sending response header");
+		exit(-1);
+	}
+
+	return header.persistent;
+}
+
+int max(std::vector<int> v){
+	int max = v[0];
+	for(unsigned int i = 0; i<v.size(); i++)
+		if(v[i] > max)
+			max = v[i];
+	return max;
 }
