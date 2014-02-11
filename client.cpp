@@ -26,6 +26,8 @@
 
 using namespace std;
 
+void sendCloseHeader(int sockfd);
+
 int main(int argc, char *argv[])
 {
     // User Input
@@ -63,6 +65,7 @@ int main(int argc, char *argv[])
 
     int sockfd;
     int fresh = 1; //determines if this is the first loop on a persistent connection
+    int transactionNumber = 1;
 
 	do{
 	    // Use FSTAT and MMAP to map the file to a memory buffer.  That will let the
@@ -73,8 +76,13 @@ int main(int argc, char *argv[])
 		string filePath;
 		cin >> filePath;
 
-		if(filePath.compare("exit") == 0)
+		if(filePath.compare("exit") == 0){
+			if(!fresh){
+				sendCloseHeader(sockfd);
+				close(sockfd);
+			}
 			exit(0);
+		}
 
 		int fd = open(filePath.c_str(), O_RDONLY);
 		if(fd == -1){
@@ -139,8 +147,9 @@ int main(int argc, char *argv[])
 		CS450Header header;
 		memset(&header, 0, sizeof(header));
 
+		header.UIN = 675005893;
 		header.HW_number = 1;
-		header.transactionNumber = 1;
+		header.transactionNumber = transactionNumber;
 
 		const char *ACCC = "mdumfo2";
 		memcpy(header.ACCC, ACCC, strlen(ACCC));
@@ -157,6 +166,8 @@ int main(int argc, char *argv[])
 			perror("Something went wrong sending header");
 			exit(-1);
 		}	
+
+		cout << "header sent\n";
 
 	    // Use SEND to send the data file.  If it is too big to send in one gulp
 	    // Then multiple SEND commands may be necessary.
@@ -200,9 +211,37 @@ int main(int argc, char *argv[])
 	    
 	    // When done, report overall statistics and exit.
 
+		transactionNumber++;
 	    fresh = 0;
 
 	}while(persistent);
+
+	sendCloseHeader(sockfd);
+	close(sockfd);
     
     return EXIT_SUCCESS;
+}
+
+void sendCloseHeader(int sockfd){
+	CS450Header header;
+	memset(&header, 0, sizeof(header));
+
+	header.UIN = 675005893;
+	header.HW_number = 1;
+	header.transactionNumber = 1;
+
+	const char *ACCC = "mdumfo2";
+	memcpy(header.ACCC, ACCC, strlen(ACCC));
+
+	//header.From_IP = 
+	//header.To_IP = 
+	header.packetType = 1;
+	header.relayCommand = 1;
+	header.persistent = 0;
+	
+	long bytesSent = send(sockfd, &header, sizeof(header), 0);
+	if(bytesSent == -1){
+		perror("Something went wrong sending header");
+		exit(-1);
+	}
 }

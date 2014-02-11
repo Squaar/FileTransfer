@@ -88,13 +88,21 @@ int main(int argc, char *argv[])
 
     std::vector<int> sockets;
     fd_set sockSet;
-    FD_ZERO(&sockSet);
+    //FD_ZERO(&sockSet);
 
     sockets.push_back(listenSocket);
-    FD_SET(listenSocket, &sockSet);
+    //FD_SET(listenSocket, &sockSet);
+
+    int selects = 0;
     
 	while(1){ //keep selecting forever
+		FD_ZERO(&sockSet);
+		for(unsigned int i=0; i<sockets.size(); i++)
+			FD_SET(sockets[i], &sockSet);
+
+
 		int readySockets = select(max(sockets)+1, &sockSet, NULL, NULL, NULL);
+		cout << "selected\n";
 
 		if(readySockets < 0){
 			perror("Error selecting");
@@ -111,10 +119,12 @@ int main(int argc, char *argv[])
 						close(sockets[i]);
 						FD_CLR(sockets[i], &sockSet);
 						sockets.erase(sockets.begin() + i);
+						cout << "socket removed\n";
 					}
 				}
 			}
 		}
+		cout << "Selects: " << ++selects << endl;
 	}
 
 	cout << "You shouldn't be here... something broke!\n";
@@ -146,6 +156,9 @@ int handleData(int sockfd){
 		perror("Error recieving header");
 		exit(-1);
 	}
+
+	if(header.relayCommand == 1)
+		return 0;
 
     // Then call RECV again to read in the bytes of the incoming file.
     //      If "saveFile" is non-zero, save the file to disk under the name
@@ -185,9 +198,8 @@ int handleData(int sockfd){
     // handle additional requests.  Otherwise keep the connection open and
     // read in another Header for another incoming file from this client.
     
-	if(header.persistent){
+	if(header.persistent)
 		response.relayCommand = 0;
-	}
 	else
 		response.relayCommand = 1;
 
