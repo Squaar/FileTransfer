@@ -60,9 +60,15 @@ int main(int argc, char *argv[])
 		relay = "none";
 
 	int persistent = 0;
-	if(argc > 4)
-		if(!strcmp(argv[4], "-p") || !strcmp(argv[4], "-P"))
-			persistent = 1;
+	int saveFile = 0;
+	if(argc > 4){
+		for(int i=4; i<argc; i++){
+			if(!strcmp(argv[i], "-p") || !strcmp(argv[i], "-P"))
+				persistent = 1;
+			if(!strcmp(argv[i], "-s") || !strcmp(argv[i], "-S"))
+				saveFile = 1;
+		}
+	}
 
     int sockfd;
     int fresh = 1; //determines if this is the first loop on a persistent connection
@@ -152,15 +158,14 @@ int main(int argc, char *argv[])
 		header.HW_number = 1;
 		header.transactionNumber = transactionNumber;
 
-		const char *ACCC = "mdumfo2";
-		memcpy(header.ACCC, ACCC, strlen(ACCC));
+		strcpy(header.filename, filePath.c_str());
 
-		//header.filename =  //NEED TO GET NAME
 		//header.From_IP = 
 		//header.To_IP = 
 		header.packetType = 1;
 		header.nbytes = fileSize;
 		header.persistent = persistent;
+		header.saveFile = saveFile;
 		
 		networkizeHeader(&header);
 
@@ -232,10 +237,6 @@ void sendCloseHeader(int sockfd){
 	header.UIN = 675005893;
 	header.HW_number = 1;
 	header.transactionNumber = 1;
-
-	const char *ACCC = "mdumfo2";
-	memcpy(header.ACCC, ACCC, strlen(ACCC));
-
 	//header.From_IP = 
 	//header.To_IP = 
 	header.packetType = 1;
@@ -250,22 +251,3 @@ void sendCloseHeader(int sockfd){
 		exit(-1);
 	}
 }
-
-// void networkizeHeader(CS450Header *header){
-// 	header.version = htonl(header.version);
-// 	header.UIN = htonl(header.UIN);
-// 	header.HW_number = htonl(header.HW_number);
-// 	header.transactionNumber = htonl(header.transactionNumber);
-// 	header.from_IP
-// 	header.to_IP
-// 	header.packetType
-// 	header.nbytes
-// 	header.relayCommand
-// 	header.persistent
-// 	header.saveFile
-// 	header.from_Port
-// 	header.to_Port
-// 	header.trueFromIP
-// 	header.trueToIP
-// 	header.bytesRecieved
-// }

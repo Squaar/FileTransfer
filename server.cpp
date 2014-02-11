@@ -21,6 +21,7 @@
 #include <string.h>
 #include <netdb.h>
 #include <vector>
+#include <fstream>
 
 #include "CS450Header.h"
 
@@ -170,9 +171,14 @@ int handleData(int sockfd){
 		exit(-1);
 	}
 
-	printf("FILE RECIEVED:\n\n%s\n", file);
+	//printf("FILE RECIEVED:\n\n%s\n", file);
 	if(header.saveFile){
-		
+		ofstream save;
+		save.open(header.filename);
+		save << file;
+		save.close();
+
+		cout << "File saved: " << header.filename << endl;
 	}
  
     // Send back an acknowledgement to the client, indicating the number of 
@@ -183,10 +189,6 @@ int handleData(int sockfd){
 
 	response.UIN = 675005893;
 	response.HW_number = 1;
-
-	const char *ACCC = "mdumfo2";
-	memcpy(response.ACCC, ACCC, strlen(ACCC));
-
 	response.packetType = 2;
 	response.bytesRecieved = bytesRecieved;
     

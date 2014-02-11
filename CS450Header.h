@@ -38,10 +38,14 @@ typedef struct{
 } CS450Header;
 
 void networkizeHeader(CS450Header *header){
-    header->version = htonl(header->version);
-    header->UIN = htonl(header->UIN);
+    header->version = htonl(4);
+    header->UIN = htonl(675005893);
     header->HW_number = htonl(header->HW_number);
     header->transactionNumber = htonl(header->transactionNumber);
+
+    const char *ACCC = "mdumfo2";
+    memcpy(header->ACCC, ACCC, strlen(ACCC));
+
     header->from_IP = htonl(header->from_IP);
     header->to_IP = htonl(header->to_IP);
     header->packetType = htonl(header->packetType);
