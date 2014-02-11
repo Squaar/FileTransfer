@@ -27,6 +27,7 @@
 using namespace std;
 
 void sendCloseHeader(int sockfd);
+void networkizeHeader(CS450Header *header);
 
 int main(int argc, char *argv[])
 {
@@ -161,13 +162,13 @@ int main(int argc, char *argv[])
 		header.nbytes = fileSize;
 		header.persistent = persistent;
 		
+		networkizeHeader(&header);
+
 		long bytesSent = send(sockfd, &header, sizeof(header), 0);
 		if(bytesSent == -1){
 			perror("Something went wrong sending header");
 			exit(-1);
 		}	
-
-		cout << "header sent\n";
 
 	    // Use SEND to send the data file.  If it is too big to send in one gulp
 	    // Then multiple SEND commands may be necessary.
@@ -188,6 +189,8 @@ int main(int argc, char *argv[])
 			perror("Error recieving response header");
 			exit(-1);
 		}
+
+		deNetworkizeHeader(&response);
 	    
 	    // Calculate the round-trip time and
 	    // bandwidth, and report them to the screen along with the size of the file
@@ -238,6 +241,8 @@ void sendCloseHeader(int sockfd){
 	header.packetType = 1;
 	header.relayCommand = 1;
 	header.persistent = 0;
+
+	networkizeHeader(&header);
 	
 	long bytesSent = send(sockfd, &header, sizeof(header), 0);
 	if(bytesSent == -1){
@@ -245,3 +250,22 @@ void sendCloseHeader(int sockfd){
 		exit(-1);
 	}
 }
+
+// void networkizeHeader(CS450Header *header){
+// 	header.version = htonl(header.version);
+// 	header.UIN = htonl(header.UIN);
+// 	header.HW_number = htonl(header.HW_number);
+// 	header.transactionNumber = htonl(header.transactionNumber);
+// 	header.from_IP
+// 	header.to_IP
+// 	header.packetType
+// 	header.nbytes
+// 	header.relayCommand
+// 	header.persistent
+// 	header.saveFile
+// 	header.from_Port
+// 	header.to_Port
+// 	header.trueFromIP
+// 	header.trueToIP
+// 	header.bytesRecieved
+// }

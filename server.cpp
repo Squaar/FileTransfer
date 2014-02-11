@@ -92,17 +92,14 @@ int main(int argc, char *argv[])
 
     sockets.push_back(listenSocket);
     //FD_SET(listenSocket, &sockSet);
-
-    int selects = 0;
     
 	while(1){ //keep selecting forever
+		//reset sockets for select
 		FD_ZERO(&sockSet);
 		for(unsigned int i=0; i<sockets.size(); i++)
 			FD_SET(sockets[i], &sockSet);
 
-
 		int readySockets = select(max(sockets)+1, &sockSet, NULL, NULL, NULL);
-		cout << "selected\n";
 
 		if(readySockets < 0){
 			perror("Error selecting");
@@ -119,12 +116,10 @@ int main(int argc, char *argv[])
 						close(sockets[i]);
 						FD_CLR(sockets[i], &sockSet);
 						sockets.erase(sockets.begin() + i);
-						cout << "socket removed\n";
 					}
 				}
 			}
 		}
-		cout << "Selects: " << ++selects << endl;
 	}
 
 	cout << "You shouldn't be here... something broke!\n";
@@ -156,6 +151,8 @@ int handleData(int sockfd){
 		perror("Error recieving header");
 		exit(-1);
 	}
+
+	deNetworkizeHeader(&header);
 
 	if(header.relayCommand == 1)
 		return 0;
@@ -202,6 +199,8 @@ int handleData(int sockfd){
 		response.relayCommand = 0;
 	else
 		response.relayCommand = 1;
+
+	networkizeHeader(&response);
 
 	long bytesSent = send(sockfd, &response, sizeof(response), 0);
 	if(bytesSent == -1){

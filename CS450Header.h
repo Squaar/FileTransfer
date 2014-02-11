@@ -36,3 +36,41 @@ typedef struct{
     
     
 } CS450Header;
+
+void networkizeHeader(CS450Header *header){
+    header->version = htonl(header->version);
+    header->UIN = htonl(header->UIN);
+    header->HW_number = htonl(header->HW_number);
+    header->transactionNumber = htonl(header->transactionNumber);
+    header->from_IP = htonl(header->from_IP);
+    header->to_IP = htonl(header->to_IP);
+    header->packetType = htonl(header->packetType);
+    header->nbytes = htonl(header->nbytes);
+    header->relayCommand = htonl(header->relayCommand);
+    header->persistent = htonl(header->persistent);
+    header->saveFile = htonl(header->saveFile);
+    header->from_Port = htons(header->from_Port);
+    header->to_Port = htons(header->to_Port);
+    header->trueFromIP = htonl(header->trueFromIP);
+    header->trueToIP = htonl(header->trueToIP);
+    header->bytesRecieved = htonl(header->bytesRecieved);
+}
+
+void deNetworkizeHeader(CS450Header *header){
+    header->version = ntohl(header->version);
+    header->UIN = ntohl(header->UIN);
+    header->HW_number = ntohl(header->HW_number);
+    header->transactionNumber = ntohl(header->transactionNumber);
+    header->from_IP = ntohl(header->from_IP);
+    header->to_IP = ntohl(header->to_IP);
+    header->packetType = ntohl(header->packetType);
+    header->nbytes = ntohl(header->nbytes);
+    header->relayCommand = ntohl(header->relayCommand);
+    header->persistent = ntohl(header->persistent);
+    header->saveFile = ntohl(header->saveFile);
+    header->from_Port = ntohs(header->from_Port);
+    header->to_Port = ntohs(header->to_Port);
+    header->trueFromIP = ntohl(header->trueFromIP);
+    header->trueToIP = ntohl(header->trueToIP);
+    header->bytesRecieved = ntohl(header->bytesRecieved);
+}
