@@ -111,6 +111,8 @@ int main(int argc, char *argv[])
 		}
 
 		unsigned int i;
+
+		//loop through all sockets and check which ones are ready
 		for(i=0; i<sockets.size(); i++){
 			if(FD_ISSET(sockets[i], &sockSet)){
 				if(sockets[i] == listenSocket)
@@ -127,11 +129,11 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	cout << "You shouldn't be here... something broke!\n";
-
     return EXIT_SUCCESS;
 }
 
+
+//accepts new connections on the listening socket
 void newConnection(int listenSocket, std::vector<int> *sockets, fd_set *sockSet){
 	struct sockaddr_storage storage;
 	socklen_t storage_size = sizeof(storage);
@@ -147,6 +149,8 @@ void newConnection(int listenSocket, std::vector<int> *sockets, fd_set *sockSet)
 	FD_SET(sockfd, sockSet);
 }
 
+
+//handles incoming headers and files from already connected sockets
 int handleData(int sockfd){
 	// Call RECV to read in one CS450Header struct
 	CS450Header header;
@@ -168,72 +172,42 @@ int handleData(int sockfd){
     //      If the total # of bytes exceeds a limit, multiple RECVs are needed.
 
 	char file[1000];
-	int bytesLeft = header.nbytes;
-
 	ofstream save;
-
+	int bytesLeft = header.nbytes;
 	long totalBytes = 0;
 
 	if(header.saveFile){
 		save.open(header.filename, ios::out | ios::binary | ios::trunc);
 	}
 
-	//int i=0;
+	//read in file 1kb at a time
 	while(bytesLeft > 0){
-		if(bytesLeft < 1000){
+		if(bytesLeft < 1000)
 			bytesRecieved = recv(sockfd, file, bytesLeft, 0);
-			// if(bytesRecieved != bytesLeft)
-			// 	cout << "BAD RECV\n";
-		}
-		else{
+		else
 			bytesRecieved = recv(sockfd, file, 1000, 0);
-			// if(bytesRecieved != 1000)
-			// 	cout << "BAD RECV\n";
-		}
+
 		if(bytesRecieved == -1){
 			perror("Error recieving file");
 			exit(-1);
 		}
 
-		totalBytes+= bytesRecieved;
+		totalBytes += bytesRecieved;
 		bytesLeft -= bytesRecieved;
-		//cout << bytesLeft << endl;
 
 		if(header.saveFile){
-			cout << file << endl << endl;
-			//save << file;
 			save.write(file, bytesRecieved);
 			save.flush();
 		}
-		//i++;
 	}
 
 	cout << "bytes recieved: " << totalBytes << endl;
-
-	//cout << "i: " << i << endl << "Should be: " << header.nbytes/1000 << endl;
 
 	if(header.saveFile){
 		save.flush();
 		save.close();
 		cout << "File saved: " << header.filename << "(" << header.nbytes << " bytes)" << endl;
-	}
-
-	// bytesRecieved = recv(sockfd, file, header.nbytes, 0);
-	// if(bytesRecieved == -1){
-	// 	perror("Error recieving file");
-	// 	exit(-1);
-	// }
-
-	// //printf("FILE RECIEVED:\n\n%s\n", file);
-	// if(header.saveFile){
-	// 	ofstream save;
-	// 	save.open(header.filename);
-	// 	save << file;
-	// 	save.close();
-
-	// 	cout << "File saved: " << header.filename << endl;
-	// }
-	
+	}	
  
     // Send back an acknowledgement to the client, indicating the number of 
     // bytes received.  Other information may also be included.

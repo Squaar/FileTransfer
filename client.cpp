@@ -193,9 +193,7 @@ int main(int argc, char *argv[])
 		header.UIN = 675005893;
 		header.HW_number = 1;
 		header.transactionNumber = transactionNumber;
-
 		strcpy(header.filename, filePath.c_str());
-
 		header.from_IP = myIP;
 		header.to_IP = toIP;
 		header.packetType = 1;
@@ -243,7 +241,6 @@ int main(int argc, char *argv[])
 	    // and output echo of all user input data.
 	    
 		clock_t end = clock();
-
 		double time = (end-start) / (double) CLOCKS_PER_SEC;
 
 		cout << time << " seconds. (" << time/fileSize << " Bytes per second)\n";
