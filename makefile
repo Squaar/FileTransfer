@@ -2,6 +2,7 @@ all: server client
 
 server: server.cpp CS450Header.h
 	g++ -Wall server.cpp -o server
+	cp server ..
 
 client: client.cpp CS450Header.h
 	g++ -Wall client.cpp -o client

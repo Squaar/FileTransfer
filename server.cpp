@@ -22,6 +22,7 @@
 #include <netdb.h>
 #include <vector>
 #include <fstream>
+#include <unistd.h>
 
 #include "CS450Header.h"
 
@@ -171,6 +172,8 @@ int handleData(int sockfd){
 
 	ofstream save;
 
+	long totalBytes = 0;
+
 	if(header.saveFile){
 		save.open(header.filename, ios::out | ios::binary | ios::trunc);
 	}
@@ -192,16 +195,20 @@ int handleData(int sockfd){
 			exit(-1);
 		}
 
+		totalBytes+= bytesRecieved;
 		bytesLeft -= bytesRecieved;
 		//cout << bytesLeft << endl;
 
 		if(header.saveFile){
 			cout << file << endl << endl;
-			save << file;
+			//save << file;
+			save.write(file, bytesRecieved);
 			save.flush();
 		}
 		//i++;
 	}
+
+	cout << "bytes recieved: " << totalBytes << endl;
 
 	//cout << "i: " << i << endl << "Should be: " << header.nbytes/1000 << endl;
 
