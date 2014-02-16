@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
 	if(argc > 4)
 		relayPort = argv[4];
 	else
-		relayPort = "none";
+		relayPort = "54320";
 
 	int persistent = 0;
 	int saveFile = 0;

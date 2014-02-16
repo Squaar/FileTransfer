@@ -8,7 +8,7 @@
         (2) Hold the connection open waiting for additional files / commands.
         The "persistent" field in the header indicates the client's preference.
         
-    Written by Matt Dumford January 2014 for CS 361
+    Written by Matt Dumford January 2014 for CS 450
 	mdumfo2@uic.edu
 */
 

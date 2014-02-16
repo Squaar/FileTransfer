@@ -1,0 +1,25 @@
+Matt Dumford - mdumfo2@uic.edu
+
+Client
+======
+client [server] [port] [relay] [relay port] [options]
+
+	server - Where you want to send files to. Defaults to localhost.
+	port - The port the server is listening to. Defaults to 54321.
+	relay - Address of relay to send files through. Enter "none" to use no relay. Defaults to none.
+	relay port - The port the relay is listening on. Defaults to 54320.
+	options -
+		-s, -S - Instructs the server to save the file.
+		-p, -P - Persistent. The server will keep the connection with the client open so you can send more files.
+
+	These arguments must be given in this order. In order to use later arguments, values must be given for the previous ones. The options, however, can be given in any order or not at all, but they must be given last.
+
+	The user will be asked for a file to send once the client is started up.
+
+Server
+======
+server [port]
+
+	port - The port to listen on. Defaults to 54321.
+
+	If the server is instructed to save a file it recieves, it will save them into the current directory with the name given to the client. It will overwrite files with the same name!
