@@ -26,12 +26,13 @@
 
 using namespace std;
 
-void sendCloseHeader(int sockfd);
-void networkizeHeader(CS450Header *header);
+void sendCloseHeader(int sockfd, int myIP, int toIP, int toPort);
 
 int main(int argc, char *argv[])
 {
     // User Input
+
+    cout << "Matt Dumford - mdumfo2@uic.edu\n\n";
     
     /* Check for the following from command-line args, or ask the user:
         
@@ -59,16 +60,35 @@ int main(int argc, char *argv[])
 	else
 		relay = "none";
 
+	string relayPort;
+	if(argc > 4)
+		relayPort = argv[4];
+	else
+		relayPort = "none";
+
 	int persistent = 0;
 	int saveFile = 0;
-	if(argc > 4){
-		for(int i=4; i<argc; i++){
+	if(argc > 5){
+		for(int i=5; i<argc; i++){
 			if(!strcmp(argv[i], "-p") || !strcmp(argv[i], "-P"))
 				persistent = 1;
 			if(!strcmp(argv[i], "-s") || !strcmp(argv[i], "-S"))
 				saveFile = 1;
 		}
 	}
+
+	int useRelay = 0;
+	if(relay.compare("none"))
+		useRelay = 1;
+
+	char myHostname[128];
+	gethostname(myHostname, sizeof(myHostname));
+	struct hostent *myHe = gethostbyname(myHostname);
+	u_int32_t myIP = ((struct in_addr **) myHe->h_addr_list)[0]->s_addr;
+
+	struct hostent *toHe = gethostbyname(server.c_str());
+	u_int32_t toIP = ((struct in_addr **) toHe->h_addr_list)[0]->s_addr;
+
 
     int sockfd;
     int fresh = 1; //determines if this is the first loop on a persistent connection
@@ -79,13 +99,13 @@ int main(int argc, char *argv[])
 	    // virtual memory system page it in as needed instead of reading it byte
 	    // by byte.
 
-		cout << "Enter a file to send, or exit to exit.\n";
+		cout << "Enter a file to send, or exit to exit.\n>";
 		string filePath;
 		cin >> filePath;
 
 		if(filePath.compare("exit") == 0){
 			if(!fresh){
-				sendCloseHeader(sockfd);
+				sendCloseHeader(sockfd, myIP, toIP, atoi(port.c_str()));
 				close(sockfd);
 			}
 			exit(0);
@@ -94,23 +114,30 @@ int main(int argc, char *argv[])
 		int fd = open(filePath.c_str(), O_RDONLY);
 		if(fd == -1){
 			perror("Error opening file");
+			if(!fresh)
+				sendCloseHeader(sockfd, myIP, toIP, atoi(port.c_str()));
 			exit(-1);
 		}
 
 		struct stat stats;
 		if(fstat(fd, &stats) < 0){
 			perror("Error in fstat");
+			if(!fresh)
+				sendCloseHeader(sockfd, myIP, toIP, atoi(port.c_str()));
 			exit(-1);
 		}
 
 		size_t fileSize = stats.st_size;
 
+		cout << "Filesize: " << fileSize << endl;		
+
 		char *file = (char *) mmap(NULL, fileSize, PROT_READ, MAP_SHARED, fd, 0);
 		if(file == MAP_FAILED){
 			perror("Error in mmap");
+			if(!fresh)
+				sendCloseHeader(sockfd, myIP, toIP, atoi(port.c_str()));
 			exit(-1);
 		}
-
 
 	    if(fresh){
 	    	// Open a Connection to the server ( or relay )  TCP for the first HW
@@ -125,12 +152,20 @@ int main(int argc, char *argv[])
     		memset(&hints, 0, sizeof(hints));
     		hints.ai_family = AF_INET;
     		hints.ai_socktype = SOCK_STREAM;
-    
-    		if(getaddrinfo(server.c_str(), port.c_str(), &hints, &res) !=0){
-    			perror("Error getting addrinfo");
-    			exit(-1);
-    		}
-    		
+
+    		if(!useRelay){
+	    		if(getaddrinfo(server.c_str(), port.c_str(), &hints, &res) !=0){
+	    			perror("Error getting addrinfo");
+	    			exit(-1);
+	    		}
+	    	}
+	    	else{
+    			if(getaddrinfo(relay.c_str(), relayPort.c_str(), &hints, &res) !=0){
+	    			perror("Error getting addrinfo");
+	    			exit(-1);
+	    		}
+	    	}
+
     		sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
     		if(sockfd == -1){
     			perror("Error creating socket");
@@ -146,7 +181,7 @@ int main(int argc, char *argv[])
 
 	    // Note the time before beginning transmission
 
-		time_t start = time(NULL);
+		clock_t start = clock();
 	    
 	    // Create a CS450Header object, fill in the fields, and use SEND to write
 	    // it to the socket.
@@ -160,18 +195,21 @@ int main(int argc, char *argv[])
 
 		strcpy(header.filename, filePath.c_str());
 
-		//header.From_IP = 
-		//header.To_IP = 
+		header.from_IP = myIP;
+		header.to_IP = toIP;
 		header.packetType = 1;
 		header.nbytes = fileSize;
 		header.persistent = persistent;
 		header.saveFile = saveFile;
+		header.from_Port = 54321;
+		header.to_Port = atoi(port.c_str());
 		
 		networkizeHeader(&header);
 
 		long bytesSent = send(sockfd, &header, sizeof(header), 0);
 		if(bytesSent == -1){
 			perror("Something went wrong sending header");
+			sendCloseHeader(sockfd, myIP, toIP, atoi(port.c_str()));
 			exit(-1);
 		}	
 
@@ -181,6 +219,7 @@ int main(int argc, char *argv[])
 		bytesSent = send(sockfd, file, fileSize, 0);
 		if(bytesSent == -1){
 			perror("Something went wrong sending file");
+			sendCloseHeader(sockfd, myIP, toIP, atoi(port.c_str()));
 			exit(-1);
 		}
 	 
@@ -192,6 +231,7 @@ int main(int argc, char *argv[])
 	    long bytesRecieved = recv(sockfd, &response, sizeof(response), 0);
 		if(bytesRecieved == -1){
 			perror("Error recieving response header");
+			sendCloseHeader(sockfd, myIP, toIP, atoi(port.c_str()));
 			exit(-1);
 		}
 
@@ -201,10 +241,10 @@ int main(int argc, char *argv[])
 	    // bandwidth, and report them to the screen along with the size of the file
 	    // and output echo of all user input data.
 	    
-		time_t end = time(NULL);
+		clock_t end = clock();
 
-		cout << end-start << " seconds.\n";
-		cout << "Thats " << (end-start) / (sizeof(header)*2 + bytesSent) << " seconds per byte transmitted!\n";
+		cout << (end-start) / (double) CLOCKS_PER_SEC << " seconds.\n";
+		//cout << "Thats " << (end-start) / (sizeof(header)*2 + bytesSent) << " seconds per byte transmitted!\n";
 
 	    // When the job is done, either the client or the server must transmit a
 	    // CS450Header containing the command code to close the connection, and 
@@ -224,24 +264,25 @@ int main(int argc, char *argv[])
 
 	}while(persistent);
 
-	sendCloseHeader(sockfd);
+	sendCloseHeader(sockfd, myIP, toIP, atoi(port.c_str()));
 	close(sockfd);
     
     return EXIT_SUCCESS;
 }
 
-void sendCloseHeader(int sockfd){
+void sendCloseHeader(int sockfd, int myIP, int toIP, int toPort){
 	CS450Header header;
 	memset(&header, 0, sizeof(header));
 
 	header.UIN = 675005893;
 	header.HW_number = 1;
 	header.transactionNumber = 1;
-	//header.From_IP = 
-	//header.To_IP = 
+	header.from_IP = myIP;
+	header.to_IP = toIP;
 	header.packetType = 1;
 	header.relayCommand = 1;
 	header.persistent = 0;
+	header.to_Port = toPort;
 
 	networkizeHeader(&header);
 	

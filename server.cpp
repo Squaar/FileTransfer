@@ -117,6 +117,7 @@ int main(int argc, char *argv[])
 						close(sockets[i]);
 						FD_CLR(sockets[i], &sockSet);
 						sockets.erase(sockets.begin() + i);
+						cout << "Connection closed.\n";
 					}
 				}
 			}
@@ -163,23 +164,60 @@ int handleData(int sockfd){
     //      "filename".  Otherwise just read in the bytes and discard them.
     //      If the total # of bytes exceeds a limit, multiple RECVs are needed.
 
-	char file[header.nbytes];
-   
-	bytesRecieved = recv(sockfd, file, header.nbytes, 0);
-	if(bytesRecieved == -1){
-		perror("Error recieving file");
-		exit(-1);
+	char file[1000];
+	int bytesLeft = header.nbytes;
+
+	// printf("%lu\n", sizeof(file));
+	// fflush(stdout);
+
+	ofstream save;
+
+	if(header.saveFile){
+		save.open(header.filename);
 	}
 
-	//printf("FILE RECIEVED:\n\n%s\n", file);
-	if(header.saveFile){
-		ofstream save;
-		save.open(header.filename);
-		save << file;
-		save.close();
+	while(bytesLeft > 0){
+		if(bytesLeft < 1000){
+			bytesRecieved = recv(sockfd, file, bytesLeft, 0);
+			bytesLeft -= bytesLeft;
+		}
+		else{
+			bytesRecieved = recv(sockfd, file, 1000, 0);
+			bytesLeft -= 1000;
+		}
+		if(bytesRecieved == -1){
+			perror("Error recieving file");
+			exit(-1);
+		}
 
+		cout << bytesLeft << endl;
+		//bytesLeft -= bytesRecieved;
+
+		if(header.saveFile)
+			save << file;
+	}
+
+	if(header.saveFile){
+		save.close();
 		cout << "File saved: " << header.filename << endl;
 	}
+
+	// bytesRecieved = recv(sockfd, file, header.nbytes, 0);
+	// if(bytesRecieved == -1){
+	// 	perror("Error recieving file");
+	// 	exit(-1);
+	// }
+
+	// //printf("FILE RECIEVED:\n\n%s\n", file);
+	// if(header.saveFile){
+	// 	ofstream save;
+	// 	save.open(header.filename);
+	// 	save << file;
+	// 	save.close();
+
+	// 	cout << "File saved: " << header.filename << endl;
+	// }
+	
  
     // Send back an acknowledgement to the client, indicating the number of 
     // bytes received.  Other information may also be included.
