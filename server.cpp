@@ -36,6 +36,8 @@ int main(int argc, char *argv[])
     
     // User Input
     
+	cout << "Matt Dumford - mdumfo2@uic.edu\n\n";
+
     /* Check for the following from command-line args, or ask the user:
         Port number to listen to.  Default = 54321.
     */
@@ -167,39 +169,46 @@ int handleData(int sockfd){
 	char file[1000];
 	int bytesLeft = header.nbytes;
 
-	// printf("%lu\n", sizeof(file));
-	// fflush(stdout);
-
 	ofstream save;
 
 	if(header.saveFile){
-		save.open(header.filename);
+		save.open(header.filename, ios::out | ios::binary | ios::trunc);
 	}
 
+	//int i=0;
 	while(bytesLeft > 0){
 		if(bytesLeft < 1000){
 			bytesRecieved = recv(sockfd, file, bytesLeft, 0);
-			bytesLeft -= bytesLeft;
+			// if(bytesRecieved != bytesLeft)
+			// 	cout << "BAD RECV\n";
 		}
 		else{
 			bytesRecieved = recv(sockfd, file, 1000, 0);
-			bytesLeft -= 1000;
+			// if(bytesRecieved != 1000)
+			// 	cout << "BAD RECV\n";
 		}
 		if(bytesRecieved == -1){
 			perror("Error recieving file");
 			exit(-1);
 		}
 
-		cout << bytesLeft << endl;
-		//bytesLeft -= bytesRecieved;
+		bytesLeft -= bytesRecieved;
+		//cout << bytesLeft << endl;
 
-		if(header.saveFile)
+		if(header.saveFile){
+			cout << file << endl << endl;
 			save << file;
+			save.flush();
+		}
+		//i++;
 	}
 
+	//cout << "i: " << i << endl << "Should be: " << header.nbytes/1000 << endl;
+
 	if(header.saveFile){
+		save.flush();
 		save.close();
-		cout << "File saved: " << header.filename << endl;
+		cout << "File saved: " << header.filename << "(" << header.nbytes << " bytes)" << endl;
 	}
 
 	// bytesRecieved = recv(sockfd, file, header.nbytes, 0);

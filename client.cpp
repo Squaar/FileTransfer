@@ -243,7 +243,9 @@ int main(int argc, char *argv[])
 	    
 		clock_t end = clock();
 
-		cout << (end-start) / (double) CLOCKS_PER_SEC << " seconds.\n";
+		double time = (end-start) / (double) CLOCKS_PER_SEC;
+
+		cout << time << " seconds. (" << time/fileSize << " Bytes per second)\n";
 		//cout << "Thats " << (end-start) / (sizeof(header)*2 + bytesSent) << " seconds per byte transmitted!\n";
 
 	    // When the job is done, either the client or the server must transmit a
