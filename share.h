@@ -42,6 +42,8 @@
         header->checksum = ntohs(header->checksum);
     }
 
+    //checksum entire packet with 0 for checksum, then put checksum in.
+    //after putting the checksum in, calulating again should give 0xFFFF
     uint16_t calcChecksum(void *data, size_t len){
     	uint16_t *ints = (uint16_t *) data;
     	uint32_t sum = 0;
