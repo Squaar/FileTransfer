@@ -1,80 +1,68 @@
-/*  CS450Header.h
+/*  CS450Header5.h
 
     This file defines the format of the header block that is to precede each
     block of data transmitted for the CS 450 HW in Spring 2014.
     
+    This is version 5 of this header, with fields added to support reliable
+    data transfer over unreliable networks.  Any fields that are not currently 
+    in use should be set to zero.
+    
+    Also, all loosely defined types, such as long int, that could vary from
+    machine to machine have been converted to uint32_t or something like it,
+    as described in 
+    http://www.nongnu.org/avr-libc/user-manual/group__avr__stdint.html.
+    
 */
 
-// ALL NUMBERS LARGER THAN ONE BYTE SHOULD BE STORED IN NETWORK ORDER
-
-typedef struct{
-    int version;  // Set to 4.  Later versions may have more fields
-    long int UIN; // Packets with unrecognized UINs will be dropped
-    int HW_number; // e.g. 1 for HW1, etc. 
-    int transactionNumber;  // To identify multiple parts of one transaction.
-    char ACCC[ 10 ],  // your ACCC user ID name, e.g. astudent42
-        filename[ 20 ];  // the name of the file being transmitted.
-                         // i.e. the name where the server should store it.
-    uint32_t from_IP, to_IP;  // Ultimate destination, not the relay
-    int packetType; // 1 = file transfer; 2 = acknowledgement
-    unsigned long nbytes; // Number of bytes of data to follow the header
-    // float garbleChance, dropChance, dupeChance; // For later HW
-    int relayCommand; // 1 = close connection
-    int persistent;  // non-zero:  Hold connection open after this file 
-    int saveFile;  // non-zero:  Save incoming file to disk.  Else discard it.
-    uint16_t from_Port, to_Port; // Ultimate source & destination.  Not relay.
-    uint32_t trueFromIP, trueToIP; // AWS may change public IP vs private IP
+#ifndef CS450HEADER5_H
+    #define CS450HEADER5_H
     
-    // Students may change the following, so long as the total overall size
-    // of the struct does not change.
-    // I.e. you can add additional fields, but if you do, reduce the size of the
-    // reserved array by an equal number of bytes.
-
-    unsigned long bytesRecieved; //to report back to the client how many bytes were recieved
+    // ALL NUMBERS LARGER THAN ONE BYTE SHOULD BE STORED IN NETWORK ORDER
     
-    char reserved[ 988 - sizeof(bytesRecieved)]; // Unused padding
+    typedef struct{
+        // First all the 32-bit numbers, for packing purposes
+        int32_t version;  // Set to 6.  Later versions may have more fields
+        int32_t UIN; // Packets with unrecognized UINs will be dropped
+        int32_t transactionNumber;  // To identify  parts of one transaction.
+        int32_t sequenceNumber; 
+        int32_t ackNumber;  // Acknowledgement number
+        uint32_t from_IP, to_IP;  // Ultimate destination, not the relay
+        uint32_t trueFromIP, trueToIP; // AWS may change public IP vs private IP
+        uint32_t nbytes; // Number of bytes of data to follow in this packet
+        uint32_t nTotalBytes; // Total number of bytes in the file
+        char filename[ 32 ];  // the name of the file being transmitted.
+                             // i.e. the name where the server should store it.
+        // Then the 16-bit ones - An even number of these.
+        uint16_t from_Port, to_Port; // Ultimate source & destination, Not relay
+        uint16_t checksum;  // One's complement of sum of remaining bytes
+        // Then some 8-bit numbers.  Hopefully a multiple of 4 of these
+        int8_t HW_number; // e.g. 1 for HW1, etc. 
+        int8_t packetType; // 1 = file transfer; 2 = acknowledgement; 3 = both
+        int8_t relayCommand; // 1 = close connection?
+        int8_t saveFile;  // non-zero:  Save to disk.  Else discard.
+        char ACCC[ 8 ];  // your ACCC user ID name, e.g. astudent42
+        int8_t dropChance; // 0 to 100, as an integral percentage
+        int8_t dupeChance; // 0 to 100, as an integral percentage
+        int8_t garbleChance; // 0 to 100, as an integral percentage
+        int8_t protocol; // * 10.  E.g. 22 => 2.2, 30 => 3.0, etc. 
+        
+        // Students may change the following, so long as the total overall size
+        // of the struct does not change.
+        // I.e. you can add additional fields, but if you do, reduce the size of
+        // the reserved array by an equal number of bytes.
+        
+        char unused[ 411 ]; // Unused padding  Total header size should be 512
+        
+    } CS450Header;
     
+    const static int BLOCKSIZE = 3584; // 3.5k, so total packet size = 4k
     
-} CS450Header;
+    typedef struct { 
+        CS450Header header; // 512 bytes
+        char data[ BLOCKSIZE ];  // 3.5k - Total Packet Size = 4k
+    } Packet;
+    
+    const static int PacketSize = sizeof( Packet );
 
-void networkizeHeader(CS450Header *header){
-    header->version = htonl(4);
-    header->UIN = htonl(675005893);
-    header->HW_number = htonl(header->HW_number);
-    header->transactionNumber = htonl(header->transactionNumber);
+#endif
 
-    const char *ACCC = "mdumfo2";
-    memcpy(header->ACCC, ACCC, strlen(ACCC));
-
-    header->from_IP = htonl(header->from_IP);
-    header->to_IP = htonl(header->to_IP);
-    header->packetType = htonl(header->packetType);
-    header->nbytes = htonl(header->nbytes);
-    header->relayCommand = htonl(header->relayCommand);
-    header->persistent = htonl(header->persistent);
-    header->saveFile = htonl(header->saveFile);
-    header->from_Port = htons(header->from_Port);
-    header->to_Port = htons(header->to_Port);
-    header->trueFromIP = htonl(header->trueFromIP);
-    header->trueToIP = htonl(header->trueToIP);
-    header->bytesRecieved = htonl(header->bytesRecieved);
-}
-
-void deNetworkizeHeader(CS450Header *header){
-    header->version = ntohl(header->version);
-    header->UIN = ntohl(header->UIN);
-    header->HW_number = ntohl(header->HW_number);
-    header->transactionNumber = ntohl(header->transactionNumber);
-    header->from_IP = ntohl(header->from_IP);
-    header->to_IP = ntohl(header->to_IP);
-    header->packetType = ntohl(header->packetType);
-    header->nbytes = ntohl(header->nbytes);
-    header->relayCommand = ntohl(header->relayCommand);
-    header->persistent = ntohl(header->persistent);
-    header->saveFile = ntohl(header->saveFile);
-    header->from_Port = ntohs(header->from_Port);
-    header->to_Port = ntohs(header->to_Port);
-    header->trueFromIP = ntohl(header->trueFromIP);
-    header->trueToIP = ntohl(header->trueToIP);
-    header->bytesRecieved = ntohl(header->bytesRecieved);
-}

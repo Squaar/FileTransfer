@@ -24,6 +24,7 @@
 #include <unistd.h>
 
 #include "CS450Header.h"
+#include "share.h"
 
 using namespace std;
 

@@ -25,6 +25,7 @@
 #include <unistd.h>
 
 #include "CS450Header.h"
+#include "share.h"
 
 using namespace std;
 
@@ -218,17 +219,11 @@ int handleData(int sockfd){
 	response.UIN = 675005893;
 	response.HW_number = 1;
 	response.packetType = 2;
-	response.bytesRecieved = bytesRecieved;
     
     // If "persistent" is zero, then include a close command in the header
     // for the acknowledgement and close the socket.  Go back to ACCEPT to 
     // handle additional requests.  Otherwise keep the connection open and
     // read in another Header for another incoming file from this client.
-    
-	if(header.persistent)
-		response.relayCommand = 0;
-	else
-		response.relayCommand = 1;
 
 	networkizeHeader(&response);
 
@@ -238,7 +233,7 @@ int handleData(int sockfd){
 		exit(-1);
 	}
 
-	return header.persistent;
+	return 1;
 }
 
 int max(std::vector<int> v){
