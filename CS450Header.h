@@ -24,7 +24,7 @@
         int32_t version;  // Set to 6.  Later versions may have more fields
         int32_t UIN; // Packets with unrecognized UINs will be dropped
         int32_t transactionNumber;  // To identify  parts of one transaction.
-        int32_t sequenceNumber; 
+        int32_t sequenceNumber; //which part of file
         int32_t ackNumber;  // Acknowledgement number
         uint32_t from_IP, to_IP;  // Ultimate destination, not the relay
         uint32_t trueFromIP, trueToIP; // AWS may change public IP vs private IP

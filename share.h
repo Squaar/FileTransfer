@@ -50,10 +50,11 @@
 
     	for(uint i=0; i<len/sizeof(uint16_t); i++){
     		sum += ints[i];
-    		if(sum > 0xFFFF){
-    			sum += sum >> 16;
-    		}
     	}
+
+        if(sum > 0xFFFF){
+            sum += sum >> 16;
+        }
 
     	return ~((uint16_t) sum & 0x0000FFFF);
     }
