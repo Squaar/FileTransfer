@@ -100,10 +100,10 @@ int main(int argc, char *argv[])
 	u_int32_t toIP = ((struct in_addr **) toHe->h_addr_list)[0]->s_addr;
 
 	struct hostent *relayHe;
-	u_int32_t relayIP;
+	//u_int32_t relayIP;
 	if(useRelay){
 		relayHe = gethostbyname(relay.c_str());
-		relayIP = ((struct in_addr **) relayHe->h_addr_list)[0]->s_addr;
+		//relayIP = ((struct in_addr **) relayHe->h_addr_list)[0]->s_addr;
 	}
 
 
@@ -134,7 +134,7 @@ int main(int argc, char *argv[])
 		}
 
 		size_t fileSize = stats.st_size;
-		cout << "Filesize: " << fileSize << endl;		
+		//cout << "Filesize: " << fileSize << endl;		
 
 		char *file = (char *) mmap(NULL, fileSize, PROT_READ, MAP_SHARED, fd, 0);
 		if(file == MAP_FAILED){
@@ -190,6 +190,8 @@ int main(int argc, char *argv[])
 		int sequenceNumber = 0;
 		while(bytesLeft > 0){
 
+			int bytesToSend = (bytesLeft < BLOCKSIZE) ? bytesLeft : BLOCKSIZE;
+
 			Packet packet;
 			memset(&packet, 0, sizeof(packet));
 
@@ -199,7 +201,7 @@ int main(int argc, char *argv[])
 			packet.header.to_IP = toIP;
 			packet.header.trueFromIP = myIP;
 			packet.header.trueToIP = myIP;
-			packet.header.nbytes = BLOCKSIZE;
+			packet.header.nbytes = bytesToSend;
 			packet.header.nTotalBytes = fileSize;
 			strcpy(packet.header.filename, filePath.c_str());
 			packet.header.from_Port = atoi(myPort.c_str());
@@ -213,12 +215,10 @@ int main(int argc, char *argv[])
 			packet.header.garbleChance = 0;
 			packet.header.protocol = 22;
 
-			if(bytesLeft > BLOCKSIZE)
-				memcpy(&packet.data, file + sequenceNumber, BLOCKSIZE);
-			else
-				memcpy(&packet.data, file + sequenceNumber, bytesLeft);
+			memcpy(&packet.data, file + sequenceNumber, bytesToSend);
 
 			packet.header.checksum = calcChecksum((void *) &packet, sizeof(packet));
+			networkizeHeader(&packet.header);
 			// print16(packet.header.checksum);
 
 			// uint16_t newcheck = calcChecksum((void *) &packet, sizeof(packet));
@@ -229,78 +229,47 @@ int main(int argc, char *argv[])
 			// else
 			// 	cout << "checksum bad\n";
 
+			//STEPS:
+			//	1-send packet
+			//	2-wait for ACK
+			//	3a-ACK is not corrupt and ACK==sequenceNumber, send next packet
+			//	3b-ACK is corrupt or ACK!=sequenceNumber, resend current packet
+			if(sendto(sockfd, &packet, sizeof(packet), 0, (struct sockaddr *) &sendAddr, sizeof(sendAddr)) < 0){
+				perror("error in sendto");
+				exit(-1);
+			}
 
+			cout << "packet sent\n";
 
+			bool ready;
+			do{
+				struct sockaddr_in responseAddr;
+				Packet response;
+				socklen_t responseAddrLen = sizeof(responseAddr);
+				int readBytes = recvfrom(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &responseAddr, &responseAddrLen);
+				if(readBytes < 0){
+					perror("Error in recvfrom");
+					exit(-1);
+				}
+				deNetworkizeHeader(&response.header);
+				ready = (response.header.ackNumber == sequenceNumber);
 
-			bytesLeft -= BLOCKSIZE;
-			// CS450Header header;
-			// memset(&header, 0, sizeof(header));
+				cout << "packet recieved\n";
 
-			// header.UIN = 675005893;
-			// header.HW_number = 1;
-			// header.transactionNumber = transactionNumber;
-			// strcpy(header.filename, filePath.c_str());
-			// header.from_IP = myIP;
-			// header.to_IP = toIP;
-			// header.packetType = 1;
-			// header.nbytes = fileSize;
-			// header.persistent = persistent;
-			// header.saveFile = saveFile;
-			// header.from_Port = 54321;
-			// header.to_Port = atoi(port.c_str());
-			
-			// networkizeHeader(&header);
+				if(!ready){
+					cout << "NAK... resending\n";
+					if(sendto(sockfd, &packet, sizeof(packet), 0, (struct sockaddr *) &sendAddr, sizeof(sendAddr)) < 0){
+						perror("error in sendto");
+						exit(-1);
+					}
+				}
 
-			// long bytesSent = send(sockfd, &header, sizeof(header), 0);
-			// if(bytesSent == -1){
-			// 	perror("Something went wrong sending header");
-			// 	sendCloseHeader(sockfd, myIP, toIP, atoi(port.c_str()));
-			// 	exit(-1);
-			// }	
+			}while(!ready);
 
-		 //    // Use SEND to send the data file.  If it is too big to send in one gulp
-		 //    // Then multiple SEND commands may be necessary.
-		   
-			// bytesSent = send(sockfd, file, fileSize, 0);
-			// if(bytesSent == -1){
-			// 	perror("Something went wrong sending file");
-			// 	sendCloseHeader(sockfd, myIP, toIP, atoi(port.c_str()));
-			// 	exit(-1);
-			// }
-		 
-		 //    // Use RECV to read in a CS450Header from the server, which should contain
-		 //    // some acknowledgement information.  
-
-		 //    CS450Header response;
-		    
-		 //    long bytesRecieved = recv(sockfd, &response, sizeof(response), 0);
-			// if(bytesRecieved == -1){
-			// 	perror("Error recieving response header");
-			// 	sendCloseHeader(sockfd, myIP, toIP, atoi(port.c_str()));
-			// 	exit(-1);
-			// }
-
-			// deNetworkizeHeader(&response);
-		    
-		 //    // Calculate the round-trip time and
-		 //    // bandwidth, and report them to the screen along with the size of the file
-		 //    // and output echo of all user input data.
-		    
-
-
-		    // When the job is done, either the client or the server must transmit a
-		    // CS450Header containing the command code to close the connection, and 
-		    // having transmitted it, close their end of the socket.  If a relay is 
-		    // involved, it will transmit the close command to the other side before
-		    // closing its connections.  Whichever process receives the close command
-		    // should close their end and also all open data files at that time.
-		    
-		    // If it is desired to transmit another file, possibly using a different
-		    // destination, protocol, relay, and/or other parameters, get the
-		    // necessary input from the user and try again.
-		    
-		    // When done, report overall statistics and exit.
-
+			//cout << "ACK\n";
+			bytesLeft -= bytesToSend;
+			//cout << bytesLeft << " BytesLeft\n";
+			sequenceNumber++;
 		}
 
 		clock_t end = clock();
