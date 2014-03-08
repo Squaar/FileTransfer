@@ -42,13 +42,9 @@ int main(int argc, char *argv[])
 
     cout << "Matt Dumford - mdumfo2@uic.edu\n\n";
     
-    /* Check for the following from command-line args, or ask the user:
-        
-        Destination ( server ) name and port number
-        Relay name and port number.  If none, communicate directly with server
-        File to transfer.  Use OPEN(2) to verify that the file can be opened
-        for reading, and ask again if necessary.
-    */
+    //CS450VA - 54.84.21.227
+    //server port - 54323
+    //relay port - 54322
 
 	string server;
 	if(argc > 1)
@@ -108,12 +104,7 @@ int main(int argc, char *argv[])
 
 
     int transactionNumber = 1;
-
 	do{
-	    // Use FSTAT and MMAP to map the file to a memory buffer.  That will let the
-	    // virtual memory system page it in as needed instead of reading it byte
-	    // by byte.
-
 		cout << "Enter a file to send, or exit to exit.\n>";
 		string filePath;
 		cin >> filePath;
@@ -142,12 +133,6 @@ int main(int argc, char *argv[])
 			exit(-1);
 		}
 
-		// Open a Connection to the server ( or relay )  TCP for the first HW
-	    // call SOCKET and CONNECT and verify that the connection opened.
-	    
-		// protocols are in /etc/protocols
-		// 0-IP --beej uses this i think
-		// 6-TCP
 		int sockfd;
 
 		struct sockaddr_in sendAddr;
@@ -179,12 +164,7 @@ int main(int argc, char *argv[])
 			exit(-1);
 		}
 
-	    // Note the time before beginning transmission
-
 		clock_t start = clock();
-	    
-	    // Create a CS450Header object, fill in the fields, and use SEND to write
-	    // it to the socket.
 	    
 		int bytesLeft = fileSize;
 		int sequenceNumber = 0;
@@ -239,7 +219,7 @@ int main(int argc, char *argv[])
 				exit(-1);
 			}
 
-			cout << "packet sent\n";
+			cout << "packet sent\n" << flush;
 
 			bool ready;
 			do{
@@ -254,7 +234,7 @@ int main(int argc, char *argv[])
 				deNetworkizeHeader(&response.header);
 				ready = (response.header.ackNumber == sequenceNumber);
 
-				cout << "packet recieved\n";
+				cout << "packet recieved\n" << flush;
 
 				if(!ready){
 					cout << "NAK... resending\n";
