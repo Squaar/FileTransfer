@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
 
 			deNetworkizeHeader(&packet.header);
 
-			//cout << "Received packet\n" << flush;
+			cout << "Received packet\n" << flush;
 			int checksum = calcChecksum((void *) &packet, sizeof(packet));
 
 			// int conID = -1;
@@ -114,7 +114,7 @@ int main(int argc, char *argv[])
 			response.header.to_Port = packet.header.from_Port;
 			response.header.packetType = 2;
 
-			//cout << "checksum: " << checksum << endl;
+			cout << "checksum: " << checksum << endl;
 			//printf("%s\n", packet.data);
 
 			if(checksum == 0)

@@ -195,17 +195,17 @@ int main(int argc, char *argv[])
 			memcpy(&packet.data, file + sequenceNumber, bytesToSend);
 
 			packet.header.checksum = calcChecksum((void *) &packet, sizeof(packet));
-			// print16(packet.header.checksum);
 
-			// uint16_t newcheck = calcChecksum((void *) &packet, sizeof(packet));
-			// // print16(newcheck);
+			uint16_t newcheck = calcChecksum((void *) &packet, sizeof(packet));
 
-			// if(newcheck == 0)
-			// 	cout << "checksum good\n";
-			// else
-			// 	cout << "checksum bad\n";
+			if(newcheck == 0)
+				cout << "checksum good\n";
+			else{
+				cout << "Bad checksum... Exiting.\n";
+				exit(-1);
+			}
 
-			//cout << "checksum: " << calcChecksum((void *) &packet, sizeof(packet)) << endl;
+			cout << "checksum: " << calcChecksum((void *) &packet, sizeof(packet)) << endl;
 
 			//STEPS:
 			//	1-send packet
@@ -238,6 +238,8 @@ int main(int argc, char *argv[])
 
 				if(!ready){
 					cout << "NAK... resending\n";
+					cout << "checksum: " << calcChecksum((void *) &packet, sizeof(packet)) << endl;
+					cout << "bytesLeft: " << bytesLeft << endl << "BLOCKSIZE: " << BLOCKSIZE << endl;
 					if(sendto(sockfd, &packet, sizeof(packet), 0, (struct sockaddr *) &sendAddr, sizeof(sendAddr)) < 0){
 						perror("error in sendto");
 						exit(-1);
