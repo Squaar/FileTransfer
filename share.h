@@ -2,8 +2,8 @@
 #define SHARE_H
 
 	void networkizeHeader(CS450Header *header){
-        header->version = htonl(6);
-        header->UIN = htonl(675005893);
+        header->version = htonl(header->version);
+        header->UIN = htonl(header->UIN);
         header->transactionNumber = htonl(header->transactionNumber);
         header->sequenceNumber = htonl(header->sequenceNumber);
         header->ackNumber = htonl(header->ackNumber);
@@ -18,14 +18,11 @@
         header->from_Port = htons(header->from_Port);
         header->to_Port = htons(header->to_Port);
         header->checksum = htons(header->checksum);
-
-        const char *ACCC = "mdumfo2";
-        memcpy(header->ACCC, ACCC, strlen(ACCC));
     }
 
     void deNetworkizeHeader(CS450Header *header){
-        header->version = ntohl(6);
-        header->UIN = ntohl(675005893);
+        header->version = ntohl(header->version);
+        header->UIN = ntohl(header->UIN);
         header->transactionNumber = ntohl(header->transactionNumber);
         header->sequenceNumber = ntohl(header->sequenceNumber);
         header->ackNumber = ntohl(header->ackNumber);
@@ -57,6 +54,14 @@
         }
 
     	return ~((uint16_t) sum & 0x0000FFFF);
+    }
+
+    void print16(uint16_t in){
+        for (int i = 0; i < 16; i++) {
+            printf("%d", (in & 0x8000) >> 15);
+            in <<= 1;
+        }
+        printf("\n");
     }
 
 #endif

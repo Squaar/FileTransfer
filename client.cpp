@@ -28,14 +28,6 @@
 
 using namespace std;
 
-void print16(uint16_t in){
-	 for (int i = 0; i < 16; i++) {
-        printf("%d", (in & 0x8000) >> 15);
-        in <<= 1;
-    }
-    printf("\n");
-}
-
 int main(int argc, char *argv[])
 {
     // User Input
@@ -175,6 +167,8 @@ int main(int argc, char *argv[])
 			Packet packet;
 			memset(&packet, 0, sizeof(packet));
 
+			packet.header.version = 6;
+			packet.header.UIN = 675005893;
 			packet.header.transactionNumber = transactionNumber;
 			packet.header.sequenceNumber = sequenceNumber;
 			packet.header.from_IP = myIP;
@@ -195,31 +189,36 @@ int main(int argc, char *argv[])
 			packet.header.garbleChance = 0;
 			packet.header.protocol = 22;
 
+			const char *ACCC = "mdumfo2";
+       		memcpy(&packet.header.ACCC, ACCC, strlen(ACCC));
+
 			memcpy(&packet.data, file + sequenceNumber, bytesToSend);
 
 			packet.header.checksum = calcChecksum((void *) &packet, sizeof(packet));
-			networkizeHeader(&packet.header);
 			// print16(packet.header.checksum);
 
 			// uint16_t newcheck = calcChecksum((void *) &packet, sizeof(packet));
-			// print16(newcheck);
+			// // print16(newcheck);
 
 			// if(newcheck == 0)
 			// 	cout << "checksum good\n";
 			// else
 			// 	cout << "checksum bad\n";
 
+			//cout << "checksum: " << calcChecksum((void *) &packet, sizeof(packet)) << endl;
+
 			//STEPS:
 			//	1-send packet
 			//	2-wait for ACK
 			//	3a-ACK is not corrupt and ACK==sequenceNumber, send next packet
 			//	3b-ACK is corrupt or ACK!=sequenceNumber, resend current packet
+			networkizeHeader(&packet.header);
 			if(sendto(sockfd, &packet, sizeof(packet), 0, (struct sockaddr *) &sendAddr, sizeof(sendAddr)) < 0){
 				perror("error in sendto");
 				exit(-1);
 			}
 
-			cout << "packet sent\n" << flush;
+			//cout << "packet sent\n" << flush;
 
 			bool ready;
 			do{
@@ -234,7 +233,7 @@ int main(int argc, char *argv[])
 				deNetworkizeHeader(&response.header);
 				ready = (response.header.ackNumber == sequenceNumber);
 
-				cout << "packet recieved\n" << flush;
+				//cout << "packet recieved\n" << flush;
 				cout << response.header.ackNumber << endl;
 
 				if(!ready){

@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
 
 		memset(&packet, 0, sizeof(packet));
 
-		cout << "Ready to recv\n";
+		//cout << "Ready to recv\n";
 
 		int readbytes = recvfrom(sockfd, &packet, sizeof(packet), 0, (struct sockaddr *) &recvAddr, &recvAddrLen);
 		if(readbytes < 0){
@@ -90,7 +90,8 @@ int main(int argc, char *argv[])
 
 			deNetworkizeHeader(&packet.header);
 
-			cout << "Rceived packet\n" << flush;
+			//cout << "Received packet\n" << flush;
+			int checksum = calcChecksum((void *) &packet, sizeof(packet));
 
 			// int conID = -1;
 			// for(int i=0; i<cons.size(); i++){
@@ -113,13 +114,13 @@ int main(int argc, char *argv[])
 			response.header.to_Port = packet.header.from_Port;
 			response.header.packetType = 2;
 
-			if(calcChecksum(&packet, sizeof(packet)) != 0){
-				response.header.ackNumber = packet.header.sequenceNumber - 1;
+			//cout << "checksum: " << checksum << endl;
+			//printf("%s\n", packet.data);
 
-			}
-			else{
+			if(checksum == 0)
 				response.header.ackNumber = packet.header.sequenceNumber;
-			}
+			else
+				response.header.ackNumber = packet.header.sequenceNumber - 1;
 
 			networkizeHeader(&response.header);
 
