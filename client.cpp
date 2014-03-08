@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
 	if(argc > 4)
 		myPort = argv[4];
 	else
-		myPort = "54321";
+		myPort = "54323";
 
 	string relayPort = "54322";
 
@@ -235,6 +235,7 @@ int main(int argc, char *argv[])
 				ready = (response.header.ackNumber == sequenceNumber);
 
 				cout << "packet recieved\n" << flush;
+				cout << response.header.ackNumber << endl;
 
 				if(!ready){
 					cout << "NAK... resending\n";

@@ -29,6 +29,12 @@
 
 using namespace std;
 
+// struct udpCon{
+// 	int lastSeqNumber;
+// 	int UIN;
+// 	int bytesLeft;
+// };
+
 int main(int argc, char *argv[])
 {
     
@@ -48,14 +54,15 @@ int main(int argc, char *argv[])
 
 
 	int sockfd;
-	if((sockfd = socket(AF_INET, SOCK_DGRAM, 0) < 0){
+	if((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
 		perror("Error creating socket");
 		exit(-1);
 	}
 	
 	struct sockaddr_in bindAddr;
+	memset(&bindAddr, 0, sizeof(bindAddr));
 	bindAddr.sin_family = AF_INET;
-	bindAddr.sin_port = htonl(atoi(port.c_str()));
+	bindAddr.sin_port = htons(atoi(port.c_str()));
 	bindAddr.sin_addr.s_addr = htonl(0);
 
 	if(bind(sockfd, (struct sockaddr *) &bindAddr, sizeof(bindAddr)) < 0){
@@ -63,25 +70,63 @@ int main(int argc, char *argv[])
 		exit(-1);
 	}
 
+	//std::vector<udpCon> cons;
+
 	//check for duplicates, same transmission, and garbled
 	while(true){
 		struct sockaddr_in recvAddr;
+		socklen_t recvAddrLen = sizeof(recvAddr);
 		Packet packet;
 
 		memset(&packet, 0, sizeof(packet));
 
-		int readbytes;
-		if((readbytes = recvfrom(sockfd, &packet, sizeof(packet), 0, (struct sockaddr *) &recvAddr, sizeof(recvAddr))) < 0){
-			perror("Error recieving packet")
-			//do something to keep server going
+		cout << "Ready to recv\n";
+
+		int readbytes = recvfrom(sockfd, &packet, sizeof(packet), 0, (struct sockaddr *) &recvAddr, &recvAddrLen);
+		if(readbytes < 0){
+			perror("Error recieving packet");
 		}
+		else{
 
-		deNetworkizeHeader(&packet);
-		int bytesLeft = packet.header.nTotalBytes; 
+			deNetworkizeHeader(&packet.header);
 
-		Packet response	
-		if(calcChecksum(&packet) != 0){
+			cout << "Rceived packet\n" << flush;
 
+			// int conID = -1;
+			// for(int i=0; i<cons.size(); i++){
+			// 	if(cons[i].UIN == packet.header.UIN)
+			// 		conID = i;
+			// }
+			// if(conID == -1){
+			// 	struct udpCon newCon;
+			// 	newCon.lastSeqNumber = packet.header.sequenceNumber;
+			// 	newCon.UIN = packet.header.UIN;
+			// 	newCon.bytesLeft = packet.header.nTotalBytes;
+			// 	cons.push_back();
+			// 	conID = cons.size()-1;
+			// }
+
+			Packet response = packet;
+			response.header.from_IP = packet.header.to_IP;
+			response.header.to_IP = packet.header.from_IP;
+			response.header.from_Port = packet.header.to_Port;
+			response.header.to_Port = packet.header.from_Port;
+			response.header.packetType = 2;
+
+			if(calcChecksum(&packet, sizeof(packet)) != 0){
+				response.header.ackNumber = packet.header.sequenceNumber - 1;
+
+			}
+			else{
+				response.header.ackNumber = packet.header.sequenceNumber;
+			}
+
+			networkizeHeader(&response.header);
+
+			if(sendto(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &recvAddr, sizeof(recvAddr)) < 0){
+				perror("error in sendto");
+				exit(-1);
+			}
 		}
 
 	}
