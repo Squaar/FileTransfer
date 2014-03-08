@@ -42,19 +42,6 @@
     //checksum entire packet with 0 for checksum, then put checksum in.
     //after putting the checksum in, calulating again should give 0xFFFF
     uint16_t calcChecksum(void *data, size_t len){
-    	// uint16_t *ints = (uint16_t *) data;
-    	// uint32_t sum = 0;
-
-    	// for(uint i=0; i<len/sizeof(uint16_t); i++){
-    	// 	sum += ints[i];
-    	// }
-
-     //    if(sum > 0xFFFF){
-     //        sum += sum >> 16;
-     //    }
-
-    	// return ~((uint16_t) sum & 0x0000FFFF);
-
         uint16_t *data16 = (uint16_t *) data;
         uint8_t *data8 = (uint8_t *) data;
         uint32_t sum = 0;

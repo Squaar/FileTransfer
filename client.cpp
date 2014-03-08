@@ -167,7 +167,7 @@ int main(int argc, char *argv[])
 			Packet packet;
 			memset(&packet, 0, sizeof(packet));
 
-			packet.header.version = 6;
+			packet.header.version = 5;
 			packet.header.UIN = 675005893;
 			packet.header.transactionNumber = transactionNumber;
 			packet.header.sequenceNumber = sequenceNumber;
