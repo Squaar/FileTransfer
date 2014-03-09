@@ -173,7 +173,7 @@ int main(int argc, char *argv[])
 							exit(-1);
 						}
 					}
-					else{
+					else if(subPacket.header.sequenceNumber == lastseq + 1){
 						lastseq = subPacket.header.sequenceNumber;
 						subResponse.header.ackNumber = lastseq;
 

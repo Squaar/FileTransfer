@@ -89,10 +89,10 @@ int main(int argc, char *argv[])
 	// cout << "to IP: " << toIP << endl;
 
 	struct hostent *relayHe;
-	u_int32_t relayIP;
+	//u_int32_t relayIP;
 	if(useRelay){
 		relayHe = gethostbyname(relay.c_str());
-		relayIP = ((struct in_addr **) relayHe->h_addr_list)[0]->s_addr;
+		//relayIP = ((struct in_addr **) relayHe->h_addr_list)[0]->s_addr;
 		// cout << "relay IP: " << relayIP << endl;
 	}
 
@@ -209,8 +209,8 @@ int main(int argc, char *argv[])
 			packet.header.packetType = 1;
 			packet.header.saveFile = saveFile;
 			packet.header.dropChance = 0;
-			packet.header.dupeChance = 0;
-			packet.header.garbleChance = 50;
+			packet.header.dupeChance = 50;
+			packet.header.garbleChance = 0;
 			packet.header.protocol = 22;
 
 			const char *ACCC = "mdumfo2";
@@ -261,8 +261,7 @@ int main(int argc, char *argv[])
 
 				if(!ready){
 					cout << "NAK... resending\n";
-					//cout << "checksum: " << calcChecksum((void *) &packet, sizeof(packet)) << endl;
-					//cout << "bytesLeft: " << bytesLeft << endl << "BLOCKSIZE: " << BLOCKSIZE << endl;
+					cout << "bytesLeft: " << bytesLeft << endl;
 					if(sendto(sockfd, &packet, sizeof(packet), 0, (struct sockaddr *) &sendAddr, sizeof(sendAddr)) < 0){
 						perror("error in sendto");
 						exit(-1);
