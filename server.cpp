@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
 	memset(&bindAddr, 0, sizeof(bindAddr));
 	bindAddr.sin_family = AF_INET;
 	bindAddr.sin_port = htons(atoi(port.c_str()));
-	bindAddr.sin_addr.s_addr = htonl(0);
+	bindAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
 	if(bind(sockfd, (struct sockaddr *) &bindAddr, sizeof(bindAddr)) < 0){
 		perror("Error binding");

@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
 	else
 		relay = "none";
 
-	string myPort = "54323";
+	string myPort = "54329";
 
 	string relayPort = "54322";
 
@@ -80,14 +80,20 @@ int main(int argc, char *argv[])
 	struct hostent *myHe = gethostbyname(myHostname);
 	u_int32_t myIP = ((struct in_addr **) myHe->h_addr_list)[0]->s_addr;
 
+	cout << "my IP: " << myIP << endl;
+	cout << "my IP: " << htonl(myIP) << endl;
+
 	struct hostent *toHe = gethostbyname(server.c_str());
 	u_int32_t toIP = ((struct in_addr **) toHe->h_addr_list)[0]->s_addr;
 
+	cout << "to IP: " << toIP << endl;
+
 	struct hostent *relayHe;
-	//u_int32_t relayIP;
+	u_int32_t relayIP;
 	if(useRelay){
 		relayHe = gethostbyname(relay.c_str());
-		//relayIP = ((struct in_addr **) relayHe->h_addr_list)[0]->s_addr;
+		relayIP = ((struct in_addr **) relayHe->h_addr_list)[0]->s_addr;
+		cout << "relay IP: " << relayIP << endl;
 	}
 
 
@@ -144,8 +150,10 @@ int main(int argc, char *argv[])
 		struct sockaddr_in bindAddr;
 		memset(&bindAddr, 0 , sizeof(bindAddr));
 		bindAddr.sin_family = AF_INET;
-		bindAddr.sin_addr.s_addr = htonl(0);
+		bindAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 		bindAddr.sin_port = htons(atoi(myPort.c_str()));
+
+		cout << ntohs(bindAddr.sin_port) << endl;
 
 		if(bind(sockfd, (struct sockaddr *) &bindAddr, sizeof(bindAddr)) < 0){
 			perror("Error binding");
