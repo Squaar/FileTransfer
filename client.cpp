@@ -62,8 +62,8 @@ int main(int argc, char *argv[])
 
 	int persistent = 0;
 	int saveFile = 0;
-	if(argc > 5){
-		for(int i=5; i<argc; i++){
+	if(argc > 4){
+		for(int i=4; i<argc; i++){
 			if(!strcmp(argv[i], "-p") || !strcmp(argv[i], "-P"))
 				persistent = 1;
 			if(!strcmp(argv[i], "-s") || !strcmp(argv[i], "-S"))
@@ -80,20 +80,20 @@ int main(int argc, char *argv[])
 	struct hostent *myHe = gethostbyname(myHostname);
 	u_int32_t myIP = ((struct in_addr **) myHe->h_addr_list)[0]->s_addr;
 
-	cout << "my IP: " << myIP << endl;
-	cout << "my IP: " << htonl(myIP) << endl;
+	// cout << "my IP: " << myIP << endl;
+	// cout << "my IP: " << htonl(myIP) << endl;
 
 	struct hostent *toHe = gethostbyname(server.c_str());
 	u_int32_t toIP = ((struct in_addr **) toHe->h_addr_list)[0]->s_addr;
 
-	cout << "to IP: " << toIP << endl;
+	// cout << "to IP: " << toIP << endl;
 
 	struct hostent *relayHe;
 	u_int32_t relayIP;
 	if(useRelay){
 		relayHe = gethostbyname(relay.c_str());
 		relayIP = ((struct in_addr **) relayHe->h_addr_list)[0]->s_addr;
-		cout << "relay IP: " << relayIP << endl;
+		// cout << "relay IP: " << relayIP << endl;
 	}
 
 
@@ -210,7 +210,7 @@ int main(int argc, char *argv[])
 			packet.header.saveFile = saveFile;
 			packet.header.dropChance = 0;
 			packet.header.dupeChance = 0;
-			packet.header.garbleChance = 0;
+			packet.header.garbleChance = 50;
 			packet.header.protocol = 22;
 
 			const char *ACCC = "mdumfo2";
