@@ -127,12 +127,40 @@ int main(int argc, char *argv[])
 			exit(-1);
 		}
 
-		int sockfd;
+		// int sockfd;
 
 		struct sockaddr_in sendAddr;
 		memset(&sendAddr, 0, sizeof(sendAddr));
 
-		sendAddr.sin_family = AF_INET;
+		// sendAddr.sin_family = AF_INET;
+		// if(useRelay){
+		// 	sendAddr.sin_port = htons(atoi(relayPort.c_str()));
+		// 	memcpy((void *) &sendAddr.sin_addr, relayHe->h_addr_list[0], relayHe->h_length);
+		// }
+		// else{
+		// 	sendAddr.sin_port = htons(atoi(port.c_str()));
+		// 	memcpy((void *) &sendAddr.sin_addr, toHe->h_addr_list[0], toHe->h_length);
+		// }
+
+		// if((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
+		// 	perror("Error creating socket");
+		// 	exit(-1);
+		// }
+
+		// struct sockaddr_in bindAddr;
+		// memset(&bindAddr, 0 , sizeof(bindAddr));
+		// bindAddr.sin_family = AF_INET;
+		// bindAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+		// bindAddr.sin_port = htons(atoi(myPort.c_str()));
+
+		int sockfd; 
+		struct addrinfo hints, *res;
+
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = AF_INET;
+		hints.ai_socktype = SOCK_DGRAM;
+		hints.ai_flags = AI_PASSIVE;
+
 		if(useRelay){
 			sendAddr.sin_port = htons(atoi(relayPort.c_str()));
 			memcpy((void *) &sendAddr.sin_addr, relayHe->h_addr_list[0], relayHe->h_length);
@@ -141,24 +169,16 @@ int main(int argc, char *argv[])
 			sendAddr.sin_port = htons(atoi(port.c_str()));
 			memcpy((void *) &sendAddr.sin_addr, toHe->h_addr_list[0], toHe->h_length);
 		}
+		getaddrinfo(NULL, myPort.c_str(), &hints, &res);
+		sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+		bind(sockfd, res->ai_addr, res->ai_addrlen);
 
-		if((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
-			perror("Error creating socket");
-			exit(-1);
-		}
+		//cout << ntohs(bindAddr.sin_port) << endl;
 
-		struct sockaddr_in bindAddr;
-		memset(&bindAddr, 0 , sizeof(bindAddr));
-		bindAddr.sin_family = AF_INET;
-		bindAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-		bindAddr.sin_port = htons(atoi(myPort.c_str()));
-
-		cout << ntohs(bindAddr.sin_port) << endl;
-
-		if(bind(sockfd, (struct sockaddr *) &bindAddr, sizeof(bindAddr)) < 0){
-			perror("Error binding");
-			exit(-1);
-		}
+		// if(bind(sockfd, (struct sockaddr *) &bindAddr, sizeof(bindAddr)) < 0){
+		// 	perror("Error binding");
+		// 	exit(-1);
+		// }
 
 		clock_t start = clock();
 	    
@@ -200,16 +220,16 @@ int main(int argc, char *argv[])
 
 			packet.header.checksum = calcChecksum((void *) &packet, sizeof(packet));
 
-			uint16_t newcheck = calcChecksum((void *) &packet, sizeof(packet));
+			// uint16_t newcheck = calcChecksum((void *) &packet, sizeof(packet));
 
-			if(newcheck == 0)
-				cout << "checksum good\n";
-			else{
-				cout << "Bad checksum... Exiting.\n";
-				exit(-1);
-			}
+			// if(newcheck == 0)
+			// 	cout << "checksum good\n";
+			// else{
+			// 	cout << "Bad checksum... Exiting.\n";
+			// 	exit(-1);
+			// }
 
-			cout << "checksum: " << calcChecksum((void *) &packet, sizeof(packet)) << endl;
+			// cout << "checksum: " << calcChecksum((void *) &packet, sizeof(packet)) << endl;
 
 			//STEPS:
 			//	1-send packet
@@ -227,6 +247,7 @@ int main(int argc, char *argv[])
 			bool ready;
 			do{
 				struct sockaddr_in responseAddr;
+				memset(&responseAddr, 0, sizeof(responseAddr));
 				Packet response;
 				socklen_t responseAddrLen = sizeof(responseAddr);
 				int readBytes = recvfrom(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &responseAddr, &responseAddrLen);
@@ -238,7 +259,7 @@ int main(int argc, char *argv[])
 				ready = (response.header.ackNumber == sequenceNumber);
 
 				//cout << "packet recieved\n" << flush;
-				cout << response.header.ackNumber << endl;
+				//cout << response.header.ackNumber << endl;
 
 				if(!ready){
 					cout << "NAK... resending\n";

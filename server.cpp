@@ -82,6 +82,7 @@ int main(int argc, char *argv[])
 		int lastseq;
 
 		struct sockaddr_in recvAddr;
+		memset(&recvAddr, 0, sizeof(recvAddr));
 		socklen_t recvAddrLen = sizeof(recvAddr);
 		Packet packet;
 
