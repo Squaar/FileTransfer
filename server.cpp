@@ -47,22 +47,33 @@ int main(int argc, char *argv[])
 		port = "54321";
 
 
-	int sockfd;
-	if((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
-		perror("Error creating socket");
-		exit(-1);
-	}
+	// int sockfd;
+	// if((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
+	// 	perror("Error creating socket");
+	// 	exit(-1);
+	// }
 	
-	struct sockaddr_in bindAddr;
-	memset(&bindAddr, 0, sizeof(bindAddr));
-	bindAddr.sin_family = AF_INET;
-	bindAddr.sin_port = htons(atoi(port.c_str()));
-	bindAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	// struct sockaddr_in bindAddr;
+	// memset(&bindAddr, 0, sizeof(bindAddr));
+	// bindAddr.sin_family = AF_INET;
+	// bindAddr.sin_port = htons(atoi(port.c_str()));
+	// bindAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-	if(bind(sockfd, (struct sockaddr *) &bindAddr, sizeof(bindAddr)) < 0){
-		perror("Error binding");
-		exit(-1);
-	}
+	// if(bind(sockfd, (struct sockaddr *) &bindAddr, sizeof(bindAddr)) < 0){
+	// 	perror("Error binding");
+	// 	exit(-1);
+	// }
+
+	int sockfd; 
+	struct addrinfo hints, *res;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_flags = AI_PASSIVE;
+	getaddrinfo(NULL, port.c_str(), &hints, &res);
+	sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+	bind(sockfd, res->ai_addr, res->ai_addrlen);
 
 
 	//check for duplicates, same transmission, and garbled
