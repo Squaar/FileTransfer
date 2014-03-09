@@ -113,6 +113,8 @@ int main(int argc, char *argv[])
 				response.header.ackNumber = packet.header.sequenceNumber - 1;
 				networkizeHeader(&response.header);
 
+				cout << "Bad checksum... sending NAK.\n";
+
 				if(sendto(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &recvAddr, sizeof(recvAddr)) < 0){
 					perror("error in sendto");
 					exit(-1);
@@ -163,6 +165,8 @@ int main(int argc, char *argv[])
 					if(subChecksum != 0){
 						subResponse.header.ackNumber = lastseq;
 						networkizeHeader(&subResponse.header);
+
+						cout << "Bad checksum... sending NAK.\n";
 
 						if(sendto(sockfd, &subResponse, sizeof(subResponse), 0, (struct sockaddr *) &recvAddr, sizeof(recvAddr)) < 0){
 							perror("error in sendto");

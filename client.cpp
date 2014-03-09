@@ -220,14 +220,12 @@ int main(int argc, char *argv[])
 
 			packet.header.checksum = calcChecksum((void *) &packet, sizeof(packet));
 
-			// uint16_t newcheck = calcChecksum((void *) &packet, sizeof(packet));
+			uint16_t newcheck = calcChecksum((void *) &packet, sizeof(packet));
 
-			// if(newcheck == 0)
-			// 	cout << "checksum good\n";
-			// else{
-			// 	cout << "Bad checksum... Exiting.\n";
-			// 	exit(-1);
-			// }
+			if(newcheck != 0){
+				cout << "Bad checksum... Exiting.\n";
+				exit(-1);
+			}
 
 			// cout << "checksum: " << calcChecksum((void *) &packet, sizeof(packet)) << endl;
 
@@ -263,8 +261,8 @@ int main(int argc, char *argv[])
 
 				if(!ready){
 					cout << "NAK... resending\n";
-					cout << "checksum: " << calcChecksum((void *) &packet, sizeof(packet)) << endl;
-					cout << "bytesLeft: " << bytesLeft << endl << "BLOCKSIZE: " << BLOCKSIZE << endl;
+					//cout << "checksum: " << calcChecksum((void *) &packet, sizeof(packet)) << endl;
+					//cout << "bytesLeft: " << bytesLeft << endl << "BLOCKSIZE: " << BLOCKSIZE << endl;
 					if(sendto(sockfd, &packet, sizeof(packet), 0, (struct sockaddr *) &sendAddr, sizeof(sendAddr)) < 0){
 						perror("error in sendto");
 						exit(-1);

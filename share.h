@@ -8,10 +8,10 @@
         header->sequenceNumber = htonl(header->sequenceNumber);
         header->ackNumber = htonl(header->ackNumber);
 
-        header->from_IP = htonl(header->from_IP);
-        header->to_IP = htonl(header->to_IP);
-        header->trueFromIP = htonl(header->trueFromIP);
-        header->trueToIP = htonl(header->trueToIP);
+        // header->from_IP = htonl(header->from_IP);
+        // header->to_IP = htonl(header->to_IP);
+        // header->trueFromIP = htonl(header->trueFromIP);
+        // header->trueToIP = htonl(header->trueToIP);
         header->nbytes = htonl(header->nbytes);
         header->nTotalBytes = htonl(header->nTotalBytes);
 
@@ -27,10 +27,10 @@
         header->sequenceNumber = ntohl(header->sequenceNumber);
         header->ackNumber = ntohl(header->ackNumber);
 
-        header->from_IP = ntohl(header->from_IP);
-        header->to_IP = ntohl(header->to_IP);
-        header->trueFromIP = ntohl(header->trueFromIP);
-        header->trueToIP = ntohl(header->trueToIP);
+        // header->from_IP = ntohl(header->from_IP);
+        // header->to_IP = ntohl(header->to_IP);
+        // header->trueFromIP = ntohl(header->trueFromIP);
+        // header->trueToIP = ntohl(header->trueToIP);
         header->nbytes = ntohl(header->nbytes);
         header->nTotalBytes = ntohl(header->nTotalBytes);
 
@@ -67,5 +67,5 @@
         }
         printf("\n");
     }
-
+    
 #endif
