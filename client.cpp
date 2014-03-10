@@ -68,12 +68,15 @@ int main(int argc, char *argv[])
 
 	int persistent = 0;
 	int saveFile = 0;
+	int verbose = 0;
 	if(argc > 5){
 		for(int i=5; i<argc; i++){
 			if(!strcmp(argv[i], "-p") || !strcmp(argv[i], "-P"))
 				persistent = 1;
 			if(!strcmp(argv[i], "-s") || !strcmp(argv[i], "-S"))
 				saveFile = 1;
+			if(!strcmp(argv[i], "-v") || !strcmp(argv[i], "-V"))
+				verbose = 1;
 		}
 	}
 
@@ -187,7 +190,8 @@ int main(int argc, char *argv[])
 			packet.header.saveFile = saveFile;
 			packet.header.dropChance = 0;
 			packet.header.dupeChance = 0;
-			packet.header.garbleChance = atoi(garbleChance.c_str());
+			//packet.header.garbleChance = atoi(garbleChance.c_str());
+			packet.header.garbleChance = 100;
 			packet.header.protocol = 22;
 
 			const char *ACCC = "mdumfo2";
@@ -241,11 +245,14 @@ int main(int argc, char *argv[])
 
 				//cout << "packet recieved\n" << flush;
 				//cout << response.header.ackNumber << endl;
-				cout <<"." << flush;
+				if(verbose)
+					cout <<"." << flush;
 
 				if(!ready){ //if it was a nak, resend packet
-					cout << "NAK... resending\n";
-					cout << "bytesLeft: " << bytesLeft << endl;
+					if(verbose){
+						cout << "NAK... resending\n";
+						cout << "bytesLeft: " << bytesLeft << endl;
+					}	
 					if(sendto(sockfd, &packet, sizeof(packet), 0, (struct sockaddr *) &sendAddr, sizeof(sendAddr)) < 0){
 						perror("error in sendto");
 						exit(-1);
