@@ -36,10 +36,6 @@ int main(int argc, char *argv[])
     
 	cout << "Matt Dumford - mdumfo2@uic.edu\n\n";
 
-    /* Check for the following from command-line args, or ask the user:
-        Port number to listen to.  Default = 54321.
-    */
-
 	string port;
 	if(argc > 1)
 		port = argv[1];
@@ -47,30 +43,15 @@ int main(int argc, char *argv[])
 		port = "54321";
 
 
-	// int sockfd;
-	// if((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
-	// 	perror("Error creating socket");
-	// 	exit(-1);
-	// }
-	
-	// struct sockaddr_in bindAddr;
-	// memset(&bindAddr, 0, sizeof(bindAddr));
-	// bindAddr.sin_family = AF_INET;
-	// bindAddr.sin_port = htons(atoi(port.c_str()));
-	// bindAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-	// if(bind(sockfd, (struct sockaddr *) &bindAddr, sizeof(bindAddr)) < 0){
-	// 	perror("Error binding");
-	// 	exit(-1);
-	// }
-
+	//set up socket
 	int sockfd; 
 	struct addrinfo hints, *res;
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_INET;
-	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_socktype = SOCK_DGRAM; //udp
 	hints.ai_flags = AI_PASSIVE;
+
 	getaddrinfo(NULL, port.c_str(), &hints, &res);
 	sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	bind(sockfd, res->ai_addr, res->ai_addrlen);
@@ -81,6 +62,7 @@ int main(int argc, char *argv[])
 		int bytesLeft;
 		int lastseq;
 
+		//sockaddr_in for recieving packets
 		struct sockaddr_in recvAddr;
 		memset(&recvAddr, 0, sizeof(recvAddr));
 		socklen_t recvAddrLen = sizeof(recvAddr);
@@ -88,6 +70,7 @@ int main(int argc, char *argv[])
 
 		memset(&packet, 0, sizeof(packet));
 
+		//read in first packet of file
 		int readbytes = recvfrom(sockfd, &packet, sizeof(packet), 0, (struct sockaddr *) &recvAddr, &recvAddrLen);
 		if(readbytes < 0){
 			perror("Error recieving packet");
@@ -99,6 +82,7 @@ int main(int argc, char *argv[])
 			cout << "Received packet\n" << flush;
 			int checksum = calcChecksum((void *) &packet, sizeof(packet));
 
+			//set up response packet
 			Packet response = packet;
 			response.header.from_IP = packet.header.to_IP;
 			response.header.to_IP = packet.header.from_IP;
@@ -106,10 +90,7 @@ int main(int argc, char *argv[])
 			response.header.to_Port = packet.header.from_Port;
 			response.header.packetType = 2;
 
-			//cout << "checksum: " << checksum << endl;
-			//printf("%s\n", packet.data);
-
-			if(checksum != 0){ //bad checksum -- just treat next packet as new file
+			if(checksum != 0){ //bad checksum -- send nak and just treat next packet as new file
 				response.header.ackNumber = packet.header.sequenceNumber - 1;
 				networkizeHeader(&response.header);
 
@@ -128,6 +109,7 @@ int main(int argc, char *argv[])
 
 				networkizeHeader(&response.header);
 
+				//send ack
 				if(sendto(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &recvAddr, sizeof(recvAddr)) < 0){
 					perror("error in sendto");
 					exit(-1);
@@ -142,6 +124,7 @@ int main(int argc, char *argv[])
 					save.write(packet.data, packet.header.nbytes);
 				}
 
+				//loop until rest of packets successfully arrive
 				while(bytesLeft > 0){
 					Packet subPacket;
 
@@ -197,8 +180,6 @@ int main(int argc, char *argv[])
 				}
 
 			}
-
-
 
 		}
 

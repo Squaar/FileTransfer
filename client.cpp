@@ -56,14 +56,20 @@ int main(int argc, char *argv[])
 	else
 		relay = "none";
 
+	string garbleChance;
+	if(argc > 4)
+		garbleChance = argv[4];
+	else
+		garbleChance = "0";
+
 	string myPort = "54329";
 
 	string relayPort = "54322";
 
 	int persistent = 0;
 	int saveFile = 0;
-	if(argc > 4){
-		for(int i=4; i<argc; i++){
+	if(argc > 5){
+		for(int i=5; i<argc; i++){
 			if(!strcmp(argv[i], "-p") || !strcmp(argv[i], "-P"))
 				persistent = 1;
 			if(!strcmp(argv[i], "-s") || !strcmp(argv[i], "-S"))
@@ -75,18 +81,15 @@ int main(int argc, char *argv[])
 	if(relay.compare("none"))
 		useRelay = 1;
 
+	//get all needed IPs
+
 	char myHostname[128];
 	gethostname(myHostname, sizeof(myHostname));
 	struct hostent *myHe = gethostbyname(myHostname);
 	u_int32_t myIP = ((struct in_addr **) myHe->h_addr_list)[0]->s_addr;
 
-	// cout << "my IP: " << myIP << endl;
-	// cout << "my IP: " << htonl(myIP) << endl;
-
 	struct hostent *toHe = gethostbyname(server.c_str());
 	u_int32_t toIP = ((struct in_addr **) toHe->h_addr_list)[0]->s_addr;
-
-	// cout << "to IP: " << toIP << endl;
 
 	struct hostent *relayHe;
 	//u_int32_t relayIP;
@@ -99,6 +102,8 @@ int main(int argc, char *argv[])
 
     int transactionNumber = 1;
 	do{
+
+		//memory map the file
 		cout << "Enter a file to send, or exit to exit.\n>";
 		string filePath;
 		cin >> filePath;
@@ -119,7 +124,6 @@ int main(int argc, char *argv[])
 		}
 
 		size_t fileSize = stats.st_size;
-		//cout << "Filesize: " << fileSize << endl;		
 
 		char *file = (char *) mmap(NULL, fileSize, PROT_READ, MAP_SHARED, fd, 0);
 		if(file == MAP_FAILED){
@@ -127,31 +131,10 @@ int main(int argc, char *argv[])
 			exit(-1);
 		}
 
-		// int sockfd;
 
+		//set up the socket
 		struct sockaddr_in sendAddr;
 		memset(&sendAddr, 0, sizeof(sendAddr));
-
-		// sendAddr.sin_family = AF_INET;
-		// if(useRelay){
-		// 	sendAddr.sin_port = htons(atoi(relayPort.c_str()));
-		// 	memcpy((void *) &sendAddr.sin_addr, relayHe->h_addr_list[0], relayHe->h_length);
-		// }
-		// else{
-		// 	sendAddr.sin_port = htons(atoi(port.c_str()));
-		// 	memcpy((void *) &sendAddr.sin_addr, toHe->h_addr_list[0], toHe->h_length);
-		// }
-
-		// if((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
-		// 	perror("Error creating socket");
-		// 	exit(-1);
-		// }
-
-		// struct sockaddr_in bindAddr;
-		// memset(&bindAddr, 0 , sizeof(bindAddr));
-		// bindAddr.sin_family = AF_INET;
-		// bindAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-		// bindAddr.sin_port = htons(atoi(myPort.c_str()));
 
 		int sockfd; 
 		struct addrinfo hints, *res;
@@ -173,14 +156,7 @@ int main(int argc, char *argv[])
 		sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 		bind(sockfd, res->ai_addr, res->ai_addrlen);
 
-		//cout << ntohs(bindAddr.sin_port) << endl;
-
-		// if(bind(sockfd, (struct sockaddr *) &bindAddr, sizeof(bindAddr)) < 0){
-		// 	perror("Error binding");
-		// 	exit(-1);
-		// }
-
-		clock_t start = clock();
+		time_t timer = time(NULL);
 	    
 		int bytesLeft = fileSize;
 		int sequenceNumber = 0;
@@ -191,6 +167,7 @@ int main(int argc, char *argv[])
 			Packet packet;
 			memset(&packet, 0, sizeof(packet));
 
+			//fill in packet fields
 			packet.header.version = 6;
 			packet.header.UIN = 675005893;
 			packet.header.transactionNumber = transactionNumber;
@@ -209,19 +186,21 @@ int main(int argc, char *argv[])
 			packet.header.packetType = 1;
 			packet.header.saveFile = saveFile;
 			packet.header.dropChance = 0;
-			packet.header.dupeChance = 50;
-			packet.header.garbleChance = 0;
+			packet.header.dupeChance = 0;
+			packet.header.garbleChance = atoi(garbleChance.c_str());
 			packet.header.protocol = 22;
 
 			const char *ACCC = "mdumfo2";
        		memcpy(&packet.header.ACCC, ACCC, strlen(ACCC));
 
+       		//copy data into packet
 			memcpy(&packet.data, file + sequenceNumber, bytesToSend);
 
+			//create checksum and put in header
 			packet.header.checksum = calcChecksum((void *) &packet, sizeof(packet));
 
+			//make sure checksum worked
 			uint16_t newcheck = calcChecksum((void *) &packet, sizeof(packet));
-
 			if(newcheck != 0){
 				cout << "Bad checksum... Exiting.\n";
 				exit(-1);
@@ -234,6 +213,8 @@ int main(int argc, char *argv[])
 			//	2-wait for ACK
 			//	3a-ACK is not corrupt and ACK==sequenceNumber, send next packet
 			//	3b-ACK is corrupt or ACK!=sequenceNumber, resend current packet
+
+			//send packet
 			networkizeHeader(&packet.header);
 			if(sendto(sockfd, &packet, sizeof(packet), 0, (struct sockaddr *) &sendAddr, sizeof(sendAddr)) < 0){
 				perror("error in sendto");
@@ -242,8 +223,10 @@ int main(int argc, char *argv[])
 
 			//cout << "packet sent\n" << flush;
 
-			bool ready;
+			bool ready; //is server ready for next packet?
 			do{
+
+				//get response from server
 				struct sockaddr_in responseAddr;
 				memset(&responseAddr, 0, sizeof(responseAddr));
 				Packet response;
@@ -258,8 +241,9 @@ int main(int argc, char *argv[])
 
 				//cout << "packet recieved\n" << flush;
 				//cout << response.header.ackNumber << endl;
+				cout <<"." << flush;
 
-				if(!ready){
+				if(!ready){ //if it was a nak, resend packet
 					cout << "NAK... resending\n";
 					cout << "bytesLeft: " << bytesLeft << endl;
 					if(sendto(sockfd, &packet, sizeof(packet), 0, (struct sockaddr *) &sendAddr, sizeof(sendAddr)) < 0){
@@ -276,10 +260,9 @@ int main(int argc, char *argv[])
 			sequenceNumber++;
 		}
 
-		clock_t end = clock();
-		double time = (end-start) / (double) CLOCKS_PER_SEC;
+		double seconds = difftime(time(NULL), timer);
 
-		cout << time << " seconds. (" << time/fileSize << " Bytes per second)\n";
+		cout << seconds << " seconds. (" << seconds/fileSize << " Bytes per second)\n";
 		transactionNumber++;
 
 	}while(persistent);    
