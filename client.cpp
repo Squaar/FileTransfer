@@ -190,8 +190,7 @@ int main(int argc, char *argv[])
 			packet.header.saveFile = saveFile;
 			packet.header.dropChance = 0;
 			packet.header.dupeChance = 0;
-			//packet.header.garbleChance = atoi(garbleChance.c_str());
-			packet.header.garbleChance = 100;
+			packet.header.garbleChance = atoi(garbleChance.c_str());
 			packet.header.protocol = 22;
 
 			const char *ACCC = "mdumfo2";
