@@ -190,11 +190,21 @@ int main(int argc, char *argv[])
 			6. set new timer for every oldest packet.
 		*/
 
+		//how long before recieve times out
+		struct timeval timeout;
+		timeout.tv_sec = 0;
+		timeout.tv_usec = 1000000; //1,000,000 usec == 1 sec
+
+		//set timeout option
+		if(setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) <0){
+			perror("Error setting timeout on socket");
+			exit(-1);
+		}
+
 		int windowSize = 5;
-		double timeout = 1.0;
 		std::list<Packet> window;
 	    
-	    int sequenceNumber = 0;
+	    int sequenceNumber = 1;
 		int windowPos = 0;
 		int bytesLeft = fileSize; //how many bytes still need to be acked
 		int bytesToPackage = fileSize; 	//how many bytes have been put into packets
@@ -203,7 +213,7 @@ int main(int argc, char *argv[])
 
 			//create packets
 			while(bytesToPackage > 0 && window.size() < windowSize){
-				int bytesToSend = (bytesToPackage < BLOCKSIZE) ? bytesLeft : BLOCKSIZE;
+				int bytesToSend = (bytesToPackage < BLOCKSIZE) ? bytesToPackage : BLOCKSIZE;
 
 				Packet packet;
 				memset(&packet, 0, sizeof(packet));
@@ -212,7 +222,7 @@ int main(int argc, char *argv[])
 				packet.header.version = 7;
 				packet.header.UIN = 675005893;
 				packet.header.transactionNumber = transactionNumber;
-				packet.header.sequenceNumber = sequenceNumber+1; //needs to start at one for some reason
+				packet.header.sequenceNumber = sequenceNumber; //needs to start at one for some reason
 				packet.header.from_IP = myIP;
 				packet.header.to_IP = toIP;
 				packet.header.trueFromIP = myIP;
@@ -237,7 +247,7 @@ int main(int argc, char *argv[])
 	       		memcpy(&packet.header.ACCC, ACCC, strlen(ACCC));
 
 	       		//copy data into packet
-				memcpy(&packet.data, file + sequenceNumber, bytesToSend);
+				memcpy(&packet.data, file + (sequenceNumber-1), bytesToSend);
 
 				//create checksum and put in header
 				packet.header.checksum = calcChecksum((void *) &packet, sizeof(packet));
@@ -265,39 +275,45 @@ int main(int argc, char *argv[])
 			}
 
 			//recieve responses
-			bool ready; 
-			do{
+			it = window.begin();
+			for(it=window.begin(); it!=window.end(); it++){
 
 				//get response from server
 				struct sockaddr_in responseAddr;
 				memset(&responseAddr, 0, sizeof(responseAddr));
 				Packet response;
 				socklen_t responseAddrLen = sizeof(responseAddr);
+
 				int readBytes = recvfrom(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &responseAddr, &responseAddrLen);
-				if(readBytes < 0){
+				
+				if(errno == EAGAIN || errno == EWOULDBLOCK){ //check if recvfrom timed out
+					cout << "Recvfrom reached timeout.\n";
+					break;
+				}
+
+				if(readBytes < 0)){
 					perror("Error in recvfrom");
+					cout << "Bytes recieved: " << readBytes << endl;
 					exit(-1);
 				}
+
 				deNetworkizeHeader(&response.header);
-				ready = (response.header.ackNumber == sequenceNumber);
 
-				//cout << "packet recieved\n" << flush;
-				//cout << response.header.ackNumber << endl;
-				if(verbose)
-					cout <<"." << flush;
-
-				if(!ready){ //if it was a nak, resend packet
-					if(verbose){
-						cout << "NAK... resending\n";
-						cout << "bytesLeft: " << bytesLeft << endl;
-					}	
-					if(sendto(sockfd, &packet, sizeof(packet), 0, (struct sockaddr *) &sendAddr, sizeof(sendAddr)) < 0){
-						perror("error in sendto");
-						exit(-1);
-					}
+				if(calcChecksum(&packet, sizeof(packet)) == 0 && response.header.ackNumber-1 == windowPos){
+					//good ack
+					bytesLeft -= response.header.nbytes;
+					windowPos++;
+					--it = window.erase(it);
+				}
+				else{
+					if(verbose)
+						cout << "Bad checksum, or packet out of order.\n";
 				}
 
-			}while(!ready);
+				if(verbose)
+					cout <<"."<< flush;
+
+			}
 		}
 
 		//===================================================================================
