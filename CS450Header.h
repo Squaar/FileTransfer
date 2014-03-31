@@ -1,4 +1,4 @@
-/*  CS450Header5.h
+/*  CS450Header.h
 
     This file defines the format of the header block that is to precede each
     block of data transmitted for the CS 450 HW in Spring 2014.
@@ -14,17 +14,17 @@
     
 */
 
-#ifndef CS450HEADER5_H
-    #define CS450HEADER5_H
+#ifndef CS450HEADER7_H
+    #define CS450HEADER7_H
     
     // ALL NUMBERS LARGER THAN ONE BYTE SHOULD BE STORED IN NETWORK ORDER
     
     typedef struct{
         // First all the 32-bit numbers, for packing purposes
-        int32_t version;  // Set to 6.  Later versions may have more fields
+        int32_t version;  // Set to 7.  Later versions may have more fields
         int32_t UIN; // Packets with unrecognized UINs will be dropped
         int32_t transactionNumber;  // To identify  parts of one transaction.
-        int32_t sequenceNumber; //which part of file
+        int32_t sequenceNumber; 
         int32_t ackNumber;  // Acknowledgement number
         uint32_t from_IP, to_IP;  // Ultimate destination, not the relay
         uint32_t trueFromIP, trueToIP; // AWS may change public IP vs private IP
@@ -44,14 +44,18 @@
         int8_t dropChance; // 0 to 100, as an integral percentage
         int8_t dupeChance; // 0 to 100, as an integral percentage
         int8_t garbleChance; // 0 to 100, as an integral percentage
-        int8_t protocol; // * 10.  E.g. 22 => 2.2, 30 => 3.0, etc. 
+        int8_t delayChance; // 0 to 100, as an integral percentage
+        uint8_t windowSize; // 0 to 255.  0 for Stop and Wait
+        int8_t protocol; // * 10.  E.g. 22 => 2.2, 30 => 3.0, etc.
+            // 30 for RDT 3.0 stop-and-wait, 31 for RDT 3.0 Go-Back-N,
+            // and 32 for RDT 3.0 Selective_Repeat 
         
         // Students may change the following, so long as the total overall size
         // of the struct does not change.
         // I.e. you can add additional fields, but if you do, reduce the size of
         // the reserved array by an equal number of bytes.
         
-        char unused[ 411 ]; // Unused padding  Total header size should be 512
+        char unused[ 409 ]; // Unused padding  Total header size should be 512
         
     } CS450Header;
     
@@ -65,4 +69,3 @@
     const static int PacketSize = sizeof( Packet );
 
 #endif
-

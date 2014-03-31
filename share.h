@@ -1,5 +1,5 @@
 #ifndef SHARE_H
-#define SHARE_H
+    #define SHARE_H
 
 	void networkizeHeader(CS450Header *header){
         header->version = htonl(header->version);
@@ -12,6 +12,7 @@
         // header->to_IP = htonl(header->to_IP);
         // header->trueFromIP = htonl(header->trueFromIP);
         // header->trueToIP = htonl(header->trueToIP);
+
         header->nbytes = htonl(header->nbytes);
         header->nTotalBytes = htonl(header->nTotalBytes);
 
@@ -31,6 +32,7 @@
         // header->to_IP = ntohl(header->to_IP);
         // header->trueFromIP = ntohl(header->trueFromIP);
         // header->trueToIP = ntohl(header->trueToIP);
+        
         header->nbytes = ntohl(header->nbytes);
         header->nTotalBytes = ntohl(header->nTotalBytes);
 
