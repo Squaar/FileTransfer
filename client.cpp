@@ -28,6 +28,8 @@
 
 using namespace std;
 
+
+
 int main(int argc, char *argv[])
 {
     // User Input
@@ -48,7 +50,7 @@ int main(int argc, char *argv[])
 	if(argc > 2)
 		port = argv[2];
 	else
-		port = "54321";
+		port = "54323";
 
 	string relay;
 	if(argc > 3)
@@ -56,21 +58,34 @@ int main(int argc, char *argv[])
 	else
 		relay = "none";
 
-	string garbleChance;
+	string relayPort;
 	if(argc > 4)
-		garbleChance = argv[4];
+		relayPort = argv[4];
+	else
+		relayPort = "54322";
+
+	string myPort;
+	if(argc > 5)
+		myPort = argv[5];
+	else
+		myPort = "54324";
+
+	string garbleChance;
+	if(argc > 6)
+		garbleChance = argv[6];
 	else
 		garbleChance = "0";
 
-	string myPort = "54329";
-
-	string relayPort = "54322";
+	string dropChance = garbleChance;
+	string dupeChance = garbleChance;
+	string delayChance = garbleChance;
+	
 
 	int persistent = 0;
 	int saveFile = 0;
 	int verbose = 0;
-	if(argc > 5){
-		for(int i=5; i<argc; i++){
+	if(argc > 7){
+		for(int i=7; i<argc; i++){
 			if(!strcmp(argv[i], "-p") || !strcmp(argv[i], "-P"))
 				persistent = 1;
 			if(!strcmp(argv[i], "-s") || !strcmp(argv[i], "-S"))
@@ -103,7 +118,7 @@ int main(int argc, char *argv[])
 	}
 
 
-    int transactionNumber = 1;
+    int transactionNumber = (int) time(NULL);
 	do{
 
 		//memory map the file
@@ -159,7 +174,21 @@ int main(int argc, char *argv[])
 		sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 		bind(sockfd, res->ai_addr, res->ai_addrlen);
 
-		time_t timer = time(NULL);
+		time_t timer = time(NULL); //timing the overall file.
+
+		//====================================================================================
+		//======================= EVERYTHING ABOVE SHOULD BE FINE! ===========================
+		//============================== (It's all setup) ====================================
+		//====================================================================================
+
+		//	STEPS:
+		/*	1. set timer for oldest packet sent.
+			2. send N packets.
+			3. wait for N responses.
+			4. if timer expires or recieve bad ack, send packets again.
+			5. move window up 1 for every packet successfully acked. 
+			6. set new timer for every oldest packet.
+		*/
 	    
 		int bytesLeft = fileSize;
 		int sequenceNumber = 0;
@@ -265,6 +294,10 @@ int main(int argc, char *argv[])
 			//cout << bytesLeft << " BytesLeft\n";
 			sequenceNumber++;
 		}
+
+		//===================================================================================
+		//========================= EVERYTHING BELOW IS FINE TOO ============================
+		//===================================================================================
 
 		double seconds = difftime(time(NULL), timer);
 
