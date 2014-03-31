@@ -22,6 +22,8 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <list>
+#include <errno.h>
 
 #include "CS450Header.h"
 #include "share.h"
@@ -201,7 +203,7 @@ int main(int argc, char *argv[])
 			exit(-1);
 		}
 
-		int windowSize = 5;
+		uint windowSize = 5;
 		std::list<Packet> window;
 	    
 	    int sequenceNumber = 1;
@@ -211,11 +213,12 @@ int main(int argc, char *argv[])
 										//(might not be acked yet)
 		while(bytesLeft > 0){
 
+			Packet packet;
+
 			//create packets
 			while(bytesToPackage > 0 && window.size() < windowSize){
 				int bytesToSend = (bytesToPackage < BLOCKSIZE) ? bytesToPackage : BLOCKSIZE;
 
-				Packet packet;
 				memset(&packet, 0, sizeof(packet));
 
 				//fill in packet fields
@@ -268,7 +271,7 @@ int main(int argc, char *argv[])
 			//send packets
 			std::list<Packet>::iterator it;;
 			for(it=window.begin(); it!=window.end(); it++){
-				if(sendto(sockfd, it, sizeof(packet), 0, (struct sockaddr *) &sendAddr, sizeof(sendAddr)) < 0){
+				if(sendto(sockfd, &(*it), sizeof(packet), 0, (struct sockaddr *) &sendAddr, sizeof(sendAddr)) < 0){
 					perror("error in sendto");
 					exit(-1);
 				}
@@ -291,7 +294,7 @@ int main(int argc, char *argv[])
 					break;
 				}
 
-				if(readBytes < 0)){
+				if(readBytes < 0){
 					perror("Error in recvfrom");
 					cout << "Bytes recieved: " << readBytes << endl;
 					exit(-1);
