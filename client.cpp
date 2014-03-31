@@ -189,73 +189,83 @@ int main(int argc, char *argv[])
 			5. move window up 1 for every packet successfully acked. 
 			6. set new timer for every oldest packet.
 		*/
+
+		int windowSize = 5;
+		double timeout = 1.0;
+		std::list<Packet> window;
 	    
-		int bytesLeft = fileSize;
-		int sequenceNumber = 0;
+	    int sequenceNumber = 0;
+		int windowPos = 0;
+		int bytesLeft = fileSize; //how many bytes still need to be acked
+		int bytesToPackage = fileSize; 	//how many bytes have been put into packets
+										//(might not be acked yet)
 		while(bytesLeft > 0){
 
-			int bytesToSend = (bytesLeft < BLOCKSIZE) ? bytesLeft : BLOCKSIZE;
+			//create packets
+			while(bytesToPackage > 0 && window.size() < windowSize){
+				int bytesToSend = (bytesToPackage < BLOCKSIZE) ? bytesLeft : BLOCKSIZE;
 
-			Packet packet;
-			memset(&packet, 0, sizeof(packet));
+				Packet packet;
+				memset(&packet, 0, sizeof(packet));
 
-			//fill in packet fields
-			packet.header.version = 6;
-			packet.header.UIN = 675005893;
-			packet.header.transactionNumber = transactionNumber;
-			packet.header.sequenceNumber = sequenceNumber;
-			packet.header.from_IP = myIP;
-			packet.header.to_IP = toIP;
-			packet.header.trueFromIP = myIP;
-			packet.header.trueToIP = myIP;
-			packet.header.nbytes = bytesToSend;
-			packet.header.nTotalBytes = fileSize;
-			strcpy(packet.header.filename, filePath.c_str());
-			packet.header.from_Port = atoi(myPort.c_str());
-			packet.header.to_Port = atoi(port.c_str());
-			//put checksum in after everything else
-			packet.header.HW_number = 2;
-			packet.header.packetType = 1;
-			packet.header.saveFile = saveFile;
-			packet.header.dropChance = 0;
-			packet.header.dupeChance = 0;
-			packet.header.garbleChance = atoi(garbleChance.c_str());
-			packet.header.protocol = 22;
+				//fill in packet fields
+				packet.header.version = 7;
+				packet.header.UIN = 675005893;
+				packet.header.transactionNumber = transactionNumber;
+				packet.header.sequenceNumber = sequenceNumber+1; //needs to start at one for some reason
+				packet.header.from_IP = myIP;
+				packet.header.to_IP = toIP;
+				packet.header.trueFromIP = myIP;
+				packet.header.trueToIP = toIP;
+				packet.header.nbytes = bytesToSend;
+				packet.header.nTotalBytes = fileSize;
+				strcpy(packet.header.filename, filePath.c_str());
+				packet.header.from_Port = atoi(myPort.c_str());
+				packet.header.to_Port = atoi(port.c_str());
+				//put checksum in after everything else
+				packet.header.HW_number = 3;
+				packet.header.packetType = 1;
+				packet.header.saveFile = saveFile;
+				packet.header.dropChance = atoi(dropChance.c_str());
+				packet.header.dupeChance = atoi(dupeChance.c_str());
+				packet.header.garbleChance = atoi(garbleChance.c_str());
+				packet.header.delayChance = atoi(delayChance.c_str());
+				packet.header.windowSize = windowSize;
+				packet.header.protocol = 31;
 
-			const char *ACCC = "mdumfo2";
-       		memcpy(&packet.header.ACCC, ACCC, strlen(ACCC));
+				const char *ACCC = "mdumfo2";
+	       		memcpy(&packet.header.ACCC, ACCC, strlen(ACCC));
 
-       		//copy data into packet
-			memcpy(&packet.data, file + sequenceNumber, bytesToSend);
+	       		//copy data into packet
+				memcpy(&packet.data, file + sequenceNumber, bytesToSend);
 
-			//create checksum and put in header
-			packet.header.checksum = calcChecksum((void *) &packet, sizeof(packet));
+				//create checksum and put in header
+				packet.header.checksum = calcChecksum((void *) &packet, sizeof(packet));
 
-			//make sure checksum worked
-			uint16_t newcheck = calcChecksum((void *) &packet, sizeof(packet));
-			if(newcheck != 0){
-				cout << "Bad checksum... Exiting.\n";
-				exit(-1);
+				//make sure checksum worked
+				uint16_t newcheck = calcChecksum((void *) &packet, sizeof(packet));
+				if(newcheck != 0){
+					cout << "Bad checksum... Exiting.\n";
+					exit(-1);
+				}
+
+				networkizeHeader(&packet.header);
+				window.push_back(packet);
+				sequenceNumber++;
+				bytesToPackage -= bytesToSend;
 			}
 
-			// cout << "checksum: " << calcChecksum((void *) &packet, sizeof(packet)) << endl;
-
-			//STEPS:
-			//	1-send packet
-			//	2-wait for ACK
-			//	3a-ACK is not corrupt and ACK==sequenceNumber, send next packet
-			//	3b-ACK is corrupt or ACK!=sequenceNumber, resend current packet
-
-			//send packet
-			networkizeHeader(&packet.header);
-			if(sendto(sockfd, &packet, sizeof(packet), 0, (struct sockaddr *) &sendAddr, sizeof(sendAddr)) < 0){
-				perror("error in sendto");
-				exit(-1);
+			//send packets
+			std::list<Packet>::iterator it;;
+			for(it=window.begin(); it!=window.end(); it++){
+				if(sendto(sockfd, it, sizeof(packet), 0, (struct sockaddr *) &sendAddr, sizeof(sendAddr)) < 0){
+					perror("error in sendto");
+					exit(-1);
+				}
 			}
 
-			//cout << "packet sent\n" << flush;
-
-			bool ready; //is server ready for next packet?
+			//recieve responses
+			bool ready; 
 			do{
 
 				//get response from server
@@ -288,11 +298,6 @@ int main(int argc, char *argv[])
 				}
 
 			}while(!ready);
-
-			//cout << "ACK\n";
-			bytesLeft -= bytesToSend;
-			//cout << bytesLeft << " BytesLeft\n";
-			sequenceNumber++;
 		}
 
 		//===================================================================================
