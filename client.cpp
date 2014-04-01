@@ -78,8 +78,12 @@ int main(int argc, char *argv[])
 	string dropChance = garbleChance;
 	string dupeChance = garbleChance;
 	string delayChance = garbleChance;
-	
 
+	garbleChance = "0";
+	dropChance = "50";
+	dupeChance = "0";
+	delayChance = "0";
+	
 	int persistent = 0;
 	int saveFile = 0;
 	int verbose = 0;
@@ -93,6 +97,8 @@ int main(int argc, char *argv[])
 				verbose = 1;
 		}
 	}
+
+	verbose = 1; //REMEMBER TO REMOVE THIS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 	int useRelay = 0;
 	if(relay.compare("none"))
@@ -267,7 +273,7 @@ int main(int argc, char *argv[])
 				bytesToPackage -= bytesToSend;
 			}
 
-			cout << "done making packets" << endl;
+			//cout << "done making packets" << endl;
 
 			//send packets
 			std::list<Packet>::iterator it;;
@@ -278,11 +284,10 @@ int main(int argc, char *argv[])
 				}
 			}
 
-			cout << "done sending packets" << endl;
+			//cout << "done sending packets" << endl;
 
 			//recieve responses
 			it = window.begin();
-			//for(it=window.begin(); it!=window.end(); it++){
 			for(uint i=0; i<window.size(); i++){
 
 				//get response from server
@@ -294,7 +299,8 @@ int main(int argc, char *argv[])
 				int readBytes = recvfrom(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &responseAddr, &responseAddrLen);
 				
 				if(errno == EAGAIN || errno == EWOULDBLOCK){ //check if recvfrom timed out
-					cout << "Recvfrom reached timeout.\n";
+					string error = errno == EAGAIN ? "EAGAIN" : "EWOULDBLOCK";
+					cout << "Recvfrom reached timeout: " << error << endl;
 					break;
 				}
 
@@ -308,30 +314,23 @@ int main(int argc, char *argv[])
 
 				//if(calcChecksum(&packet, sizeof(packet)) == 0 && response.header.ackNumber-1 == windowPos){
 				if(response.header.ackNumber-1 == windowPos){
-					//good ack
-					cout << "good ack: "  << response.header.ackNumber-1 << endl;
+					if(verbose)
+						cout << "good ack: "  << response.header.ackNumber-1 << endl;
+
 					bytesLeft -= response.header.nbytes;
 					windowPos++;
 					it = window.erase(it);
-					//--it;
 				}
 				else{
-					//if(verbose){
-						//if(calcChecksum(&packet, sizeof(packet)) != 0)
-							//cout << "Bad checksum" << endl;
+					if(verbose){
 						if(response.header.ackNumber-1 != windowPos){
-							//cout << "Bad ack number, either nak or wrong order" << endl;
 							cout << "Bad ack: " << response.header.ackNumber-1 << " expected: " 
 								<< windowPos << endl;
 						}
-					//}
+					}
 				}
-
-				// if(verbose)
-				// 	cout <<"."<< flush;
-
 			}
-			cout << "done recieving packets" << endl;
+			//cout << "done recieving packets" << endl;
 		}
 
 		//===================================================================================
