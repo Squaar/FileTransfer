@@ -30,17 +30,14 @@
 
 using namespace std;
 
-
+//CS450VA - 54.84.21.227
+//server port - 54323
+//relay port - 54322
 
 int main(int argc, char *argv[])
 {
     // User Input
-
     cout << "Matt Dumford - mdumfo2@uic.edu\n\n";
-    
-    //CS450VA - 54.84.21.227
-    //server port - 54323
-    //relay port - 54322
 
 	string server;
 	if(argc > 1)
@@ -194,14 +191,16 @@ int main(int argc, char *argv[])
 
 		//how long before recieve times out
 		struct timeval timeout;
-		timeout.tv_sec = 0;
-		timeout.tv_usec = 1000000; //1,000,000 usec == 1 sec
+		timeout.tv_sec = 1;
+		timeout.tv_usec = 0; //1,000,000 usec == 1 sec
 
 		//set timeout option
 		if(setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) <0){
 			perror("Error setting timeout on socket");
 			exit(-1);
 		}
+
+		cout << "Done with setup" << endl;
 
 		uint windowSize = 5;
 		std::list<Packet> window;
@@ -268,6 +267,8 @@ int main(int argc, char *argv[])
 				bytesToPackage -= bytesToSend;
 			}
 
+			cout << "done making packets" << endl;
+
 			//send packets
 			std::list<Packet>::iterator it;;
 			for(it=window.begin(); it!=window.end(); it++){
@@ -277,9 +278,12 @@ int main(int argc, char *argv[])
 				}
 			}
 
+			cout << "done sending packets" << endl;
+
 			//recieve responses
 			it = window.begin();
-			for(it=window.begin(); it!=window.end(); it++){
+			//for(it=window.begin(); it!=window.end(); it++){
+			for(uint i=0; i<window.size(); i++){
 
 				//get response from server
 				struct sockaddr_in responseAddr;
@@ -302,21 +306,32 @@ int main(int argc, char *argv[])
 
 				deNetworkizeHeader(&response.header);
 
-				if(calcChecksum(&packet, sizeof(packet)) == 0 && response.header.ackNumber-1 == windowPos){
+				//if(calcChecksum(&packet, sizeof(packet)) == 0 && response.header.ackNumber-1 == windowPos){
+				if(response.header.ackNumber-1 == windowPos){
 					//good ack
+					cout << "good ack: "  << response.header.ackNumber-1 << endl;
 					bytesLeft -= response.header.nbytes;
 					windowPos++;
-					--it = window.erase(it);
+					it = window.erase(it);
+					//--it;
 				}
 				else{
-					if(verbose)
-						cout << "Bad checksum, or packet out of order.\n";
+					//if(verbose){
+						//if(calcChecksum(&packet, sizeof(packet)) != 0)
+							//cout << "Bad checksum" << endl;
+						if(response.header.ackNumber-1 != windowPos){
+							//cout << "Bad ack number, either nak or wrong order" << endl;
+							cout << "Bad ack: " << response.header.ackNumber-1 << " expected: " 
+								<< windowPos << endl;
+						}
+					//}
 				}
 
-				if(verbose)
-					cout <<"."<< flush;
+				// if(verbose)
+				// 	cout <<"."<< flush;
 
 			}
+			cout << "done recieving packets" << endl;
 		}
 
 		//===================================================================================
