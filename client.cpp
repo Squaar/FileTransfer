@@ -79,10 +79,10 @@ int main(int argc, char *argv[])
 	string dupeChance = garbleChance;
 	string delayChance = garbleChance;
 
-	garbleChance = "0";
-	dropChance = "50";
-	dupeChance = "0";
-	delayChance = "0";
+	// garbleChance = "0";
+	// dropChance = "50";
+	// dupeChance = "0";
+	// delayChance = "0";
 	
 	int persistent = 0;
 	int saveFile = 0;
@@ -212,7 +212,7 @@ int main(int argc, char *argv[])
 		std::list<Packet> window;
 	    
 	    int sequenceNumber = 1;
-		int windowPos = 0;
+		int windowPos = 1;
 		int bytesLeft = fileSize; //how many bytes still need to be acked
 		int bytesToPackage = fileSize; 	//how many bytes have been put into packets
 										//(might not be acked yet)
@@ -313,9 +313,9 @@ int main(int argc, char *argv[])
 				deNetworkizeHeader(&response.header);
 
 				//if(calcChecksum(&packet, sizeof(packet)) == 0 && response.header.ackNumber-1 == windowPos){
-				if(response.header.ackNumber-1 == windowPos){
+				if(response.header.ackNumber == windowPos){
 					if(verbose)
-						cout << "good ack: "  << response.header.ackNumber-1 << endl;
+						cout << "good ack: "  << response.header.ackNumber << endl;
 
 					bytesLeft -= response.header.nbytes;
 					windowPos++;
@@ -323,8 +323,8 @@ int main(int argc, char *argv[])
 				}
 				else{
 					if(verbose){
-						if(response.header.ackNumber-1 != windowPos){
-							cout << "Bad ack: " << response.header.ackNumber-1 << " expected: " 
+						if(response.header.ackNumber != windowPos){
+							cout << "Bad ack: " << response.header.ackNumber << " expected: " 
 								<< windowPos << endl;
 						}
 					}
