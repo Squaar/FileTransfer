@@ -312,6 +312,8 @@ int main(int argc, char *argv[])
 
 				deNetworkizeHeader(&response.header);
 
+				cout << response.header.ackNumber << endl;
+
 				//if(calcChecksum(&packet, sizeof(packet)) == 0 && response.header.ackNumber-1 == windowPos){
 				if(response.header.ackNumber == windowPos){
 					if(verbose)

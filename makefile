@@ -10,6 +10,7 @@ client: client.cpp CS450Header.h share.h
 gdb: server.cpp client.cpp CS450Header.h share.h
 	g++ -Wall -g server.cpp -o server
 	g++ -Wall -g client.cpp -o client
+	cp server ..
 
 clean:
 	rm server

@@ -29,7 +29,7 @@
 
 using namespace std;
 
-int verbose = 0;
+int verbose;
 
 void recvFile(int sockfd);
 Packet flipAddresses(Packet packet);
@@ -47,6 +47,7 @@ int main(int argc, char *argv[])
 	else
 		port = "54321";
 
+	verbose = 0;
 	if(argc > 2){
 		for(int i=2; i<argc; i++){
 			if(!strcmp(argv[i], "-v") || !strcmp(argv[i], "-V"))
@@ -70,6 +71,9 @@ int main(int argc, char *argv[])
 
 	//check for duplicates, same transmission, and garbled
 	while(true){
+		if(verbose)
+			cout << "New file.\n" << flush;
+
 		recvFile(sockfd);
 	}
 
@@ -81,7 +85,8 @@ void recvFile(int sockfd){
 	int expectedSeq = 1;
 	int32_t UIN;
 	int32_t transactionNumber;
-	int saveFile;
+	int saveFile = 0;
+	ofstream save;
 
 	//sockaddr_in for recieving packets
 	struct sockaddr_in recvAddr;
@@ -100,18 +105,23 @@ void recvFile(int sockfd){
 
 		deNetworkizeHeader(&packet.header);
 
-		cout << "Received packet\n" << flush;
-		int checksum = calcChecksum((void *) &packet, sizeof(packet));
+		if(verbose)
+			cout << "Received packet\n" << flush;
 
+		int checksum = calcChecksum((void *) &packet, sizeof(packet));
+ 
 		//set up response packet
 		Packet response = flipAddresses(packet);
 
 		if(checksum != 0 || packet.header.sequenceNumber != expectedSeq){ //bad checksum -- send nak and just treat next packet as new file
-			response.header.ackNumber = expectedSeq-1;
+			response.header.ackNumber = 0;
+
+			cout << response.header.ackNumber << endl;
+
 			networkizeHeader(&response.header);
 
 			if(verbose)
-				cout << "Bad checksum.\n";
+				cout << "Bad checksum.\n" << flush;
 
 			if(sendto(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &recvAddr, sizeof(recvAddr)) < 0){
 				perror("error in sendto");
@@ -122,6 +132,8 @@ void recvFile(int sockfd){
 			//setup ack
 			response.header.ackNumber = expectedSeq;
 			networkizeHeader(&response.header);
+
+			cout << response.header.ackNumber << endl;
 
 			//send ack
 			if(sendto(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &recvAddr, sizeof(recvAddr)) < 0){
@@ -136,7 +148,6 @@ void recvFile(int sockfd){
 			saveFile = packet.header.saveFile;
 
 			//save file if you need to
-			ofstream save;
 			if(saveFile){
 				save.open(packet.header.filename, ios::out | ios::binary | ios::trunc);
 				save.write(packet.data, packet.header.nbytes);
@@ -144,6 +155,9 @@ void recvFile(int sockfd){
 
 			//get the rest of the file
 			while(bytesLeft > 0){
+
+				cout << bytesLeft << "/" << packet.header.nTotalBytes << endl;
+
 				memset(&recvAddr, 0, sizeof(recvAddr));
 				memset(&packet, 0, sizeof(packet));
 
@@ -168,10 +182,13 @@ void recvFile(int sockfd){
 							|| packet.header.sequenceNumber != expectedSeq)
 					{ 
 						response.header.ackNumber = expectedSeq-1;
+
+						cout << response.header.ackNumber << endl;
+
 						networkizeHeader(&response.header);
 
 						if(verbose)
-							cout << "Bad packet.\n";
+							cout << "Bad packet.\n" << flush;
 
 						if(sendto(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &recvAddr, sizeof(recvAddr)) < 0){
 							perror("error in sendto");
@@ -180,6 +197,9 @@ void recvFile(int sockfd){
 					}
 					else{
 						response.header.ackNumber = expectedSeq;
+
+						cout << response.header.ackNumber << endl;
+
 						networkizeHeader(&response.header);
 
 						//send ack
@@ -196,86 +216,13 @@ void recvFile(int sockfd){
 						}
 					}
 				}
-			}
-
-			if(saveFile){
-				save.flush();
-				save.close();
-				cout << "File saved: " << packet.header.filename << "(" << packet.header.nTotalBytes << " bytes)" << endl;
-			}
+			}	
 		}
-
-	// 	else{ //checksum checks out -- next packets are part of same file
-	// 		response.header.ackNumber = packet.header.sequenceNumber;
-	// 		int saveFile = packet.header.saveFile;
-
-	// 		networkizeHeader(&response.header);
-
-	// 		//send ack
-	// 		if(sendto(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &recvAddr, sizeof(recvAddr)) < 0){
-	// 			perror("error in sendto");
-	// 			exit(-1);
-	// 		}
-
-	// 		bytesLeft = packet.header.nTotalBytes - packet.header.nbytes;
-	// 		lastseq = packet.header.sequenceNumber;
-
-	// 		ofstream save;
-	// 		if(saveFile){
-	// 			save.open(packet.header.filename, ios::out | ios::binary | ios::trunc);
-	// 			save.write(packet.data, packet.header.nbytes);
-	// 		}
-
-	// 		//loop until rest of packets successfully arrive
-	// 		while(bytesLeft > 0){
-	// 			Packet subPacket;
-
-	// 			memset(&subPacket, 0, sizeof(subPacket));
-
-	// 			int readbytes = recvfrom(sockfd, &subPacket, sizeof(subPacket), 0, (struct sockaddr *) &recvAddr, &recvAddrLen);
-	// 			if(readbytes < 0){
-	// 				perror("Error recieving subPacket");
-	// 			}
-
-	// 			deNetworkizeHeader(&subPacket.header);
-	// 			int subChecksum = calcChecksum(&subPacket, sizeof(subPacket));
-
-	// 			Packet subResponse = flipAddresses(subPacket);
-
-	// 			if(subChecksum != 0){
-	// 				subResponse.header.ackNumber = lastseq;
-	// 				networkizeHeader(&subResponse.header);
-
-	// 				cout << "Bad checksum... sending NAK.\n";
-
-	// 				if(sendto(sockfd, &subResponse, sizeof(subResponse), 0, (struct sockaddr *) &recvAddr, sizeof(recvAddr)) < 0){
-	// 					perror("error in sendto");
-	// 					exit(-1);
-	// 				}
-	// 			}
-	// 			else if(subPacket.header.sequenceNumber == lastseq + 1){
-	// 				lastseq = subPacket.header.sequenceNumber;
-	// 				subResponse.header.ackNumber = lastseq;
-
-	// 				if(saveFile){
-	// 					save.write(subPacket.data, subPacket.header.nbytes);
-	// 				}
-
-	// 				bytesLeft -= subPacket.header.nbytes;
-
-	// 				networkizeHeader(&subResponse.header);
-	// 				if(sendto(sockfd, &subResponse, sizeof(subResponse), 0, (struct sockaddr *) &recvAddr, sizeof(recvAddr)) < 0){
-	// 					perror("error in sendto");
-	// 					exit(-1);
-	// 				}
-	// 			}
-	// 		}
-	// 		if(saveFile){
-	// 			save.flush();
-	// 			save.close();
-	// 			cout << "File saved: " << packet.header.filename << "(" << packet.header.nTotalBytes << " bytes)" << endl;
-	// 		}
-	// 	}
+	}
+	if(saveFile){
+		save.flush();
+		save.close();
+		cout << "File saved: " << packet.header.filename << "(" << packet.header.nTotalBytes << " bytes)" << endl;
 	}
 }
 
