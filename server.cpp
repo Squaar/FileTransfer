@@ -111,7 +111,7 @@ void recvFile(int sockfd){
 		// if(verbose)
 		// 	cout << "Received packet\n" << flush;
 
-		int checksum = calcChecksum((void *) &packet, sizeof(packet));
+		int checksum = calcChecksum((void *) &packet, sizeof(Packet));
  
 		//set up response packet
 		Packet response = flipAddresses(packet);

@@ -84,10 +84,10 @@ int main(int argc, char *argv[])
 	string dupeChance = garbleChance;
 	string delayChance = garbleChance;
 
-	garbleChance = "0";
-	dropChance = "0";
-	dupeChance = "0";
-	delayChance = "0";
+	// garbleChance = "0";
+	// dropChance = "0";
+	// dupeChance = "0";
+	// delayChance = "0";
 	
 	int persistent = 0;
 	int saveFile = 0;
@@ -209,8 +209,6 @@ int main(int argc, char *argv[])
 			exit(-1);
 		}
 
-		cout << "Done with setup" << endl;
-
 		uint windowSize = 5;
 		std::list<Packet> window;
 	    
@@ -262,7 +260,7 @@ int main(int argc, char *argv[])
 				memcpy(&packet.data, file + ((sequenceNumber-1)*BLOCKSIZE), bytesToSend);
 
 				//create checksum and put in header
-				packet.header.checksum = calcChecksum((void *) &packet, sizeof(packet));
+				packet.header.checksum = calcChecksum((void *) &packet, sizeof(Packet));
 
 				//make sure checksum worked
 				uint16_t newcheck = calcChecksum((void *) &packet, sizeof(packet));
