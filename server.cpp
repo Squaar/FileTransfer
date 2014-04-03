@@ -121,8 +121,12 @@ void recvFile(int sockfd){
 
 			networkizeHeader(&response.header);
 
-			if(verbose)
-				cout << "Bad checksum.\n" << flush;
+			if(verbose){
+				if(checksum !=0)
+					cout << "Bad checksum.\n" << flush;
+				else
+					cout << "Bad sequence number.\n" << flush;
+			}
 
 			if(sendto(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &recvAddr, sizeof(recvAddr)) < 0){
 				perror("error in sendto");
@@ -172,7 +176,7 @@ void recvFile(int sockfd){
 					if(verbose)
 						cout << "Received packet\n" << flush;
 
-					int checksum = calcChecksum((void *) &packet, sizeof(packet));
+					checksum = calcChecksum((void *) &packet, sizeof(packet));
 
 					//set up response packet
 					response = flipAddresses(packet);
@@ -188,8 +192,17 @@ void recvFile(int sockfd){
 
 						networkizeHeader(&response.header);
 
-						if(verbose)
-							cout << "Bad packet.\n" << flush;
+						if(verbose){
+							if(checksum != 0)
+								cout << "Bad packet.\n" << flush;
+							else if(packet.header.UIN != UIN)
+								cout << "Bad UIN.\n" << flush;
+							else if(packet.header.transactionNumber != transactionNumber)
+								cout << "Bad transaction number.\n" << flush;
+							else
+								cout << "Bad seq: " << packet.header.sequenceNumber << 
+										" expected: " << expectedSeq << endl;
+						}
 
 						if(sendto(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &recvAddr, sizeof(recvAddr)) < 0){
 							perror("error in sendto");

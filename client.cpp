@@ -288,7 +288,8 @@ int main(int argc, char *argv[])
 
 			//recieve responses
 			it = window.begin();
-			for(uint i=0; i<window.size(); i++){
+			int currentWindowSize = window.size();
+			for(int i=0; i<currentWindowSize; i++){
 
 				//get response from server
 				struct sockaddr_in responseAddr;
