@@ -32,6 +32,10 @@
 using namespace std;
 
 //CS450VA - 54.84.21.227
+//CS450OR - 54.213.83.180
+//CS450CA - 54.193.35.191
+//CS450EU - 54.194.234.13
+//CS450TO - 54.199.136.22
 //server port - 54323
 //relay port - 54322
 
@@ -196,7 +200,7 @@ int main(int argc, char *argv[])
 
 		//how long before recieve times out
 		struct timeval timeout;
-		timeout.tv_sec = 1;
+		timeout.tv_sec = 3;
 		timeout.tv_usec = 0; //1,000,000 usec == 1 sec
 
 		//set timeout option
