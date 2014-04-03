@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <list>
 #include <errno.h>
+#include <fstream>
 
 #include "CS450Header.h"
 #include "share.h"
@@ -193,6 +194,12 @@ int main(int argc, char *argv[])
 			4. if timer expires or recieve bad ack, send packets again.
 			5. move window up 1 for every packet successfully acked. 
 			6. set new timer for every oldest packet.
+
+			NOTES:
+			-the client is messing up reading the chunks of file in
+			-the server is saving exactly what the client is reading in
+				-the server works perfectly fine afaik
+			-
 		*/
 
 		//how long before recieve times out
@@ -216,6 +223,11 @@ int main(int argc, char *argv[])
 		int bytesLeft = fileSize; //how many bytes still need to be acked
 		int bytesToPackage = fileSize; 	//how many bytes have been put into packets
 										//(might not be acked yet)
+
+		ofstream save;
+		save.open("TESTFILE", ios::out | ios::binary | ios::trunc);
+		//save.write(file, fileSize);
+
 		while(bytesLeft > 0){
 
 			Packet packet;
@@ -255,7 +267,12 @@ int main(int argc, char *argv[])
 	       		memcpy(&packet.header.ACCC, ACCC, strlen(ACCC));
 
 	       		//copy data into packet
-				memcpy(&packet.data, file + (sequenceNumber-1), bytesToSend);
+				memcpy(&packet.data, file + ((sequenceNumber-1)*BLOCKSIZE), bytesToSend);
+
+				//=======================================================================================================================================
+				
+				save.write(packet.data, packet.header.nbytes);
+				//cout << packet.data << endl;
 
 				//create checksum and put in header
 				packet.header.checksum = calcChecksum((void *) &packet, sizeof(packet));
@@ -313,7 +330,7 @@ int main(int argc, char *argv[])
 
 				deNetworkizeHeader(&response.header);
 
-				cout << response.header.ackNumber << endl;
+				//cout << response.header.ackNumber << endl;
 
 				if(response.header.ackNumber == windowPos){
 					if(verbose)
@@ -334,6 +351,8 @@ int main(int argc, char *argv[])
 			}
 			//cout << "done recieving packets" << endl;
 		}
+
+		save.close();
 
 		//===================================================================================
 		//========================= EVERYTHING BELOW IS FINE TOO ============================
