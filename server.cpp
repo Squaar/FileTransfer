@@ -176,7 +176,7 @@ void recvFile(int sockfd){
 					// if(verbose)
 					// 	cout << "Received packet\n" << flush;
 
-					checksum = calcChecksum((void *) &packet, sizeof(packet));
+					checksum = calcChecksum((void *) &packet, sizeof(Packet));
 
 					//set up response packet
 					response = flipAddresses(packet);
@@ -248,6 +248,8 @@ Packet flipAddresses(Packet packet){
 	flipped.header.to_IP = packet.header.from_IP;
 	flipped.header.from_Port = packet.header.to_Port;
 	flipped.header.to_Port = packet.header.from_Port;
+	flipped.header.trueToIP = packet.header.trueFromIP;
+	flipped.header.trueFromIP = packet.header.trueToIP;
 	flipped.header.packetType = 2;
 	return flipped;
 }
