@@ -75,6 +75,7 @@ int main(int argc, char *argv[])
 			cout << "New file.\n" << flush;
 
 		recvFile(sockfd);
+		exit(0);
 	}
 
     return EXIT_SUCCESS;
@@ -224,6 +225,7 @@ void recvFile(int sockfd){
 		save.close();
 		cout << "File saved: " << packet.header.filename << "(" << packet.header.nTotalBytes << " bytes)" << endl;
 	}
+
 }
 
 Packet flipAddresses(Packet packet){
