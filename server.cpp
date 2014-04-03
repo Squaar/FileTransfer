@@ -23,6 +23,7 @@
 #include <vector>
 #include <fstream>
 #include <unistd.h>
+#include <iomanip>
 
 #include "CS450Header.h"
 #include "share.h"
@@ -71,11 +72,7 @@ int main(int argc, char *argv[])
 
 	//check for duplicates, same transmission, and garbled
 	while(true){
-		if(verbose)
-			cout << "New file.\n" << flush;
-
 		recvFile(sockfd);
-		exit(0);
 	}
 
     return EXIT_SUCCESS;
@@ -87,6 +84,7 @@ void recvFile(int sockfd){
 	int32_t UIN;
 	int32_t transactionNumber;
 	int saveFile = 0;
+	double percent = 0;
 	ofstream save;
 
 	//sockaddr_in for recieving packets
@@ -99,6 +97,10 @@ void recvFile(int sockfd){
 
 	//read in first packet of file
 	int readbytes = recvfrom(sockfd, &packet, sizeof(packet), 0, (struct sockaddr *) &recvAddr, &recvAddrLen);
+
+	if(verbose)
+		cout << "New incoming file.\n" << flush;
+
 	if(readbytes < 0){
 		perror("Error recieving packet");
 	}
@@ -106,8 +108,8 @@ void recvFile(int sockfd){
 
 		deNetworkizeHeader(&packet.header);
 
-		if(verbose)
-			cout << "Received packet\n" << flush;
+		// if(verbose)
+		// 	cout << "Received packet\n" << flush;
 
 		int checksum = calcChecksum((void *) &packet, sizeof(packet));
  
@@ -116,8 +118,6 @@ void recvFile(int sockfd){
 
 		if(checksum != 0 || packet.header.sequenceNumber != expectedSeq){ //bad checksum -- send nak and just treat next packet as new file
 			response.header.ackNumber = 0;
-
-			cout << response.header.ackNumber << endl;
 
 			networkizeHeader(&response.header);
 
@@ -138,8 +138,6 @@ void recvFile(int sockfd){
 			response.header.ackNumber = expectedSeq;
 			networkizeHeader(&response.header);
 
-			cout << response.header.ackNumber << endl;
-
 			//send ack
 			if(sendto(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &recvAddr, sizeof(recvAddr)) < 0){
 				perror("error in sendto");
@@ -151,6 +149,10 @@ void recvFile(int sockfd){
 			UIN = packet.header.UIN;
 			transactionNumber = packet.header.transactionNumber;
 			saveFile = packet.header.saveFile;
+			percent += ((double) packet.header.nbytes / (double) packet.header.nTotalBytes)*100.0;
+
+			if(verbose)
+				cout << fixed << setprecision(2) << percent << "%" << endl;
 
 			//save file if you need to
 			if(saveFile){
@@ -160,8 +162,6 @@ void recvFile(int sockfd){
 
 			//get the rest of the file
 			while(bytesLeft > 0){
-
-				cout << bytesLeft << "/" << packet.header.nTotalBytes << endl;
 
 				memset(&recvAddr, 0, sizeof(recvAddr));
 				memset(&packet, 0, sizeof(packet));
@@ -173,8 +173,8 @@ void recvFile(int sockfd){
 				else{
 					deNetworkizeHeader(&packet.header);
 
-					if(verbose)
-						cout << "Received packet\n" << flush;
+					// if(verbose)
+					// 	cout << "Received packet\n" << flush;
 
 					checksum = calcChecksum((void *) &packet, sizeof(packet));
 
@@ -187,8 +187,6 @@ void recvFile(int sockfd){
 							|| packet.header.sequenceNumber != expectedSeq)
 					{ 
 						response.header.ackNumber = expectedSeq-1;
-
-						cout << response.header.ackNumber << endl;
 
 						networkizeHeader(&response.header);
 
@@ -209,10 +207,9 @@ void recvFile(int sockfd){
 							exit(-1);
 						}
 					}
+					//good packet
 					else{
 						response.header.ackNumber = expectedSeq;
-
-						cout << response.header.ackNumber << endl;
 
 						networkizeHeader(&response.header);
 
@@ -224,6 +221,10 @@ void recvFile(int sockfd){
 
 						bytesLeft -= packet.header.nbytes;
 						expectedSeq++;
+						percent += ((double) packet.header.nbytes / (double) packet.header.nTotalBytes)*100.0;
+
+						if(verbose)
+							cout << fixed << setprecision(2) << percent << "%" << endl;
 
 						if(saveFile){
 							save.write(packet.data, packet.header.nbytes);

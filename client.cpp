@@ -80,10 +80,10 @@ int main(int argc, char *argv[])
 	string dupeChance = garbleChance;
 	string delayChance = garbleChance;
 
-	// garbleChance = "0";
-	// dropChance = "50";
-	// dupeChance = "0";
-	// delayChance = "0";
+	garbleChance = "0";
+	dropChance = "0";
+	dupeChance = "0";
+	delayChance = "0";
 	
 	int persistent = 0;
 	int saveFile = 0;
@@ -98,8 +98,6 @@ int main(int argc, char *argv[])
 				verbose = 1;
 		}
 	}
-
-	verbose = 1; //REMEMBER TO REMOVE THIS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 	int useRelay = 0;
 	if(relay.compare("none"))
@@ -194,12 +192,6 @@ int main(int argc, char *argv[])
 			4. if timer expires or recieve bad ack, send packets again.
 			5. move window up 1 for every packet successfully acked. 
 			6. set new timer for every oldest packet.
-
-			NOTES:
-			-the client is messing up reading the chunks of file in
-			-the server is saving exactly what the client is reading in
-				-the server works perfectly fine afaik
-			-
 		*/
 
 		//how long before recieve times out
@@ -223,10 +215,6 @@ int main(int argc, char *argv[])
 		int bytesLeft = fileSize; //how many bytes still need to be acked
 		int bytesToPackage = fileSize; 	//how many bytes have been put into packets
 										//(might not be acked yet)
-
-		ofstream save;
-		save.open("TESTFILE", ios::out | ios::binary | ios::trunc);
-		//save.write(file, fileSize);
 
 		while(bytesLeft > 0){
 
@@ -269,11 +257,6 @@ int main(int argc, char *argv[])
 	       		//copy data into packet
 				memcpy(&packet.data, file + ((sequenceNumber-1)*BLOCKSIZE), bytesToSend);
 
-				//=======================================================================================================================================
-				
-				save.write(packet.data, packet.header.nbytes);
-				//cout << packet.data << endl;
-
 				//create checksum and put in header
 				packet.header.checksum = calcChecksum((void *) &packet, sizeof(packet));
 
@@ -290,8 +273,6 @@ int main(int argc, char *argv[])
 				bytesToPackage -= bytesToSend;
 			}
 
-			//cout << "done making packets" << endl;
-
 			//send packets
 			std::list<Packet>::iterator it;;
 			for(it=window.begin(); it!=window.end(); it++){
@@ -300,8 +281,6 @@ int main(int argc, char *argv[])
 					exit(-1);
 				}
 			}
-
-			//cout << "done sending packets" << endl;
 
 			//recieve responses
 			it = window.begin();
@@ -330,8 +309,6 @@ int main(int argc, char *argv[])
 
 				deNetworkizeHeader(&response.header);
 
-				//cout << response.header.ackNumber << endl;
-
 				if(response.header.ackNumber == windowPos){
 					if(verbose)
 						cout << "good ack: "  << response.header.ackNumber << endl;
@@ -349,10 +326,7 @@ int main(int argc, char *argv[])
 					}
 				}
 			}
-			//cout << "done recieving packets" << endl;
 		}
-
-		save.close();
 
 		//===================================================================================
 		//========================= EVERYTHING BELOW IS FINE TOO ============================
