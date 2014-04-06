@@ -99,7 +99,7 @@ void recvFile(int sockfd){
 	int readbytes = recvfrom(sockfd, &packet, sizeof(packet), 0, (struct sockaddr *) &recvAddr, &recvAddrLen);
 
 	if(verbose)
-		cout << "New incoming file.\n" << flush;
+		cout << "\nNew incoming file.\n" << flush;
 
 	if(readbytes < 0){
 		perror("Error recieving packet");
@@ -128,7 +128,7 @@ void recvFile(int sockfd){
 					cout << "Bad sequence number.\n" << flush;
 			}
 
-			if(sendto(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &recvAddr, sizeof(recvAddr)) < 0){
+			if(sendto(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &recvAddr, recvAddrLen) < 0){
 				perror("error in sendto");
 				exit(-1);
 			}
@@ -136,10 +136,18 @@ void recvFile(int sockfd){
 		else{ //good checksum
 			//setup ack
 			response.header.ackNumber = expectedSeq;
+
+			cout << "packet To: " << packet.header.to_IP << ":" << packet.header.to_Port << 
+					" From: " << packet.header.from_IP << ":" << packet.header.from_Port << endl;
+			cout << "response To: " << response.header.to_IP << ":" << response.header.to_Port << 
+					" From: " << response.header.from_IP << ":" << response.header.from_Port << endl;
+			cout << "UIN: " << response.header.UIN << endl;
+			
+
 			networkizeHeader(&response.header);
 
 			//send ack
-			if(sendto(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &recvAddr, sizeof(recvAddr)) < 0){
+			if(sendto(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &recvAddr, recvAddrLen) < 0){
 				perror("error in sendto");
 				exit(-1);
 			}

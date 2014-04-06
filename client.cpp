@@ -25,11 +25,22 @@
 #include <list>
 #include <errno.h>
 #include <fstream>
+#include <signal.h>
 
 #include "CS450Header.h"
 #include "share.h"
 
 using namespace std;
+
+void alarmHandler(int sig);
+void sendPackets();
+
+std::list<Packet> window;
+int sockfd;
+struct sockaddr_in sendAddr;
+
+const static int TIMEOUT_SEC = 3;
+const static uint WINDOW_SIZE = 5;
 
 //CS450VA - 54.84.21.227
 //CS450OR - 54.213.83.180
@@ -84,10 +95,10 @@ int main(int argc, char *argv[])
 	string dupeChance = garbleChance;
 	string delayChance = garbleChance;
 
-	// garbleChance = "0";
-	// dropChance = "0";
-	// dupeChance = "0";
-	// delayChance = "0";
+	garbleChance = "0";
+	dropChance = "20";
+	dupeChance = "0";
+	delayChance = "0";
 	
 	int persistent = 0;
 	int saveFile = 0;
@@ -157,12 +168,9 @@ int main(int argc, char *argv[])
 			exit(-1);
 		}
 
-
 		//set up the socket
-		struct sockaddr_in sendAddr;
 		memset(&sendAddr, 0, sizeof(sendAddr));
-
-		int sockfd; 
+		 
 		struct addrinfo hints, *res;
 
 		memset(&hints, 0, sizeof(hints));
@@ -199,19 +207,19 @@ int main(int argc, char *argv[])
 		*/
 
 		//how long before recieve times out
-		struct timeval timeout;
-		timeout.tv_sec = 3;
-		timeout.tv_usec = 0; //1,000,000 usec == 1 sec
+		// struct timeval timeout;
+		// timeout.tv_sec = 3;
+		// timeout.tv_usec = 0; //1,000,000 usec == 1 sec
 
-		//set timeout option
-		if(setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) <0){
-			perror("Error setting timeout on socket");
-			exit(-1);
-		}
+		// //set timeout option
+		// if(setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) <0){
+		// 	perror("Error setting timeout on socket");
+		// 	exit(-1);
+		// }
 
-		uint windowSize = 5;
-		std::list<Packet> window;
-	    
+		//set up alarm
+		signal(SIGALRM, alarmHandler);
+		
 	    int sequenceNumber = 1;
 		int windowPos = 1;
 		int bytesLeft = fileSize; //how many bytes still need to be acked
@@ -223,7 +231,7 @@ int main(int argc, char *argv[])
 			Packet packet;
 
 			//create packets
-			while(bytesToPackage > 0 && window.size() < windowSize){
+			while(bytesToPackage > 0 && window.size() < WINDOW_SIZE){
 				int bytesToSend = (bytesToPackage < BLOCKSIZE) ? bytesToPackage : BLOCKSIZE;
 
 				memset(&packet, 0, sizeof(packet));
@@ -250,7 +258,7 @@ int main(int argc, char *argv[])
 				packet.header.dupeChance = atoi(dupeChance.c_str());
 				packet.header.garbleChance = atoi(garbleChance.c_str());
 				packet.header.delayChance = atoi(delayChance.c_str());
-				packet.header.windowSize = windowSize;
+				packet.header.windowSize = WINDOW_SIZE;
 				packet.header.protocol = 31;
 
 				const char *ACCC = "mdumfo2";
@@ -276,13 +284,8 @@ int main(int argc, char *argv[])
 			}
 
 			//send packets
-			std::list<Packet>::iterator it;;
-			for(it=window.begin(); it!=window.end(); it++){
-				if(sendto(sockfd, &(*it), sizeof(packet), 0, (struct sockaddr *) &sendAddr, sizeof(sendAddr)) < 0){
-					perror("error in sendto");
-					exit(-1);
-				}
-			}
+			std::list<Packet>::iterator it;
+			sendPackets();
 
 			//recieve responses
 			it = window.begin();
@@ -341,4 +344,22 @@ int main(int argc, char *argv[])
 
 	}while(persistent);    
     return EXIT_SUCCESS;
+}
+
+void alarmHandler(int sig){
+	//resend packets
+	sendPackets();
+	signal(SIGALRM, alarmHandler);
+}
+
+void sendPackets(){
+	std::list<Packet>::iterator it;
+	for(it=window.begin(); it!=window.end(); it++){
+		if(sendto(sockfd, &(*it), sizeof(Packet), 0, (struct sockaddr *) &sendAddr, sizeof(sendAddr)) < 0){
+			perror("error in sendto");
+			exit(-1);
+		}
+		if(it == window.begin())
+			alarm(TIMEOUT_SEC);
+	}
 }
