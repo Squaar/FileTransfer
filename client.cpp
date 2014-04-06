@@ -34,13 +34,14 @@ using namespace std;
 
 void alarmHandler(int sig);
 void sendPackets();
+void printWindow();
 
 std::list<Packet> window;
 int sockfd;
 struct sockaddr_in sendAddr;
 
 const static int TIMEOUT_SEC = 3;
-const static uint WINDOW_SIZE = 5;
+const static int WINDOW_SIZE = 5;
 
 //CS450VA - 54.84.21.227
 //CS450OR - 54.213.83.180
@@ -95,10 +96,10 @@ int main(int argc, char *argv[])
 	string dupeChance = garbleChance;
 	string delayChance = garbleChance;
 
-	garbleChance = "0";
-	dropChance = "20";
-	dupeChance = "0";
-	delayChance = "0";
+	// garbleChance = "0";
+	// dropChance = "20";
+	// dupeChance = "0";
+	// delayChance = "0";
 	
 	int persistent = 0;
 	int saveFile = 0;
@@ -300,11 +301,11 @@ int main(int argc, char *argv[])
 
 				int readBytes = recvfrom(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &responseAddr, &responseAddrLen);
 				
-				if(errno == EAGAIN || errno == EWOULDBLOCK){ //check if recvfrom timed out
-					string error = errno == EAGAIN ? "EAGAIN" : "EWOULDBLOCK";
-					cout << "Recvfrom reached timeout: " << error << endl;
-					break;
-				}
+				// if(errno == EAGAIN || errno == EWOULDBLOCK){ //check if recvfrom timed out
+				// 	string error = errno == EAGAIN ? "EAGAIN" : "EWOULDBLOCK";
+				// 	cout << "Recvfrom reached timeout: " << error << endl;
+				// 	break;
+				// }
 
 				if(readBytes < 0){
 					perror("Error in recvfrom");
@@ -314,19 +315,24 @@ int main(int argc, char *argv[])
 
 				deNetworkizeHeader(&response.header);
 
-				if(response.header.ackNumber == windowPos){
+				if(response.header.ackNumber >= windowPos && response.header.ackNumber < windowPos + WINDOW_SIZE){
 					if(verbose)
 						cout << "good ack: "  << response.header.ackNumber << endl;
 
-					bytesLeft -= response.header.nbytes;
-					windowPos++;
-					it = window.erase(it);
+					//for(int j=0; j<response.haeder.ackNumber - windowPos + 1; j++){
+					while(windowPos <= response.header.ackNumber){
+						bytesLeft -= BLOCKSIZE;
+						it = window.erase(it);
+						windowPos++;
+						i++;
+					}	
 				}
 				else{
 					if(verbose){
 						if(response.header.ackNumber != windowPos){
 							cout << "Bad ack: " << response.header.ackNumber << " expected: " 
 								<< windowPos << endl;
+							printWindow();
 						}
 					}
 				}
@@ -359,7 +365,19 @@ void sendPackets(){
 			perror("error in sendto");
 			exit(-1);
 		}
+
+		cout << "Sent: " << ntohl((*it).header.sequenceNumber) << endl;
+
 		if(it == window.begin())
 			alarm(TIMEOUT_SEC);
 	}
+}
+
+void printWindow(){
+	std::list<Packet>::iterator it;
+	cout << "\tCurrent Window: ";
+	for(it=window.begin(); it!=window.end(); it++){
+		cout << ntohl((*it).header.sequenceNumber) << ", ";
+	}
+	cout << endl;
 }
