@@ -39,6 +39,7 @@ void printWindow();
 std::list<Packet> window;
 int sockfd;
 struct sockaddr_in sendAddr;
+int verbose;
 
 const static int TIMEOUT_SEC = 3;
 const static int WINDOW_SIZE = 5;
@@ -103,7 +104,7 @@ int main(int argc, char *argv[])
 	
 	int persistent = 0;
 	int saveFile = 0;
-	int verbose = 0;
+	verbose = 0;
 	if(argc > 7){
 		for(int i=7; i<argc; i++){
 			if(!strcmp(argv[i], "-p") || !strcmp(argv[i], "-P"))
@@ -207,17 +208,6 @@ int main(int argc, char *argv[])
 			6. set new timer for every oldest packet.
 		*/
 
-		//how long before recieve times out
-		// struct timeval timeout;
-		// timeout.tv_sec = 3;
-		// timeout.tv_usec = 0; //1,000,000 usec == 1 sec
-
-		// //set timeout option
-		// if(setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) <0){
-		// 	perror("Error setting timeout on socket");
-		// 	exit(-1);
-		// }
-
 		//set up alarm
 		signal(SIGALRM, alarmHandler);
 		
@@ -300,12 +290,6 @@ int main(int argc, char *argv[])
 				socklen_t responseAddrLen = sizeof(responseAddr);
 
 				int readBytes = recvfrom(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &responseAddr, &responseAddrLen);
-				
-				// if(errno == EAGAIN || errno == EWOULDBLOCK){ //check if recvfrom timed out
-				// 	string error = errno == EAGAIN ? "EAGAIN" : "EWOULDBLOCK";
-				// 	cout << "Recvfrom reached timeout: " << error << endl;
-				// 	break;
-				// }
 
 				if(readBytes < 0){
 					perror("Error in recvfrom");
@@ -332,7 +316,7 @@ int main(int argc, char *argv[])
 						if(response.header.ackNumber != windowPos){
 							cout << "Bad ack: " << response.header.ackNumber << " expected: " 
 								<< windowPos << endl;
-							printWindow();
+							//printWindow();
 						}
 					}
 				}
@@ -366,7 +350,8 @@ void sendPackets(){
 			exit(-1);
 		}
 
-		cout << "Sent: " << ntohl((*it).header.sequenceNumber) << endl;
+		if(verbose)
+			cout << "Sent: " << ntohl((*it).header.sequenceNumber) << endl;
 
 		if(it == window.begin())
 			alarm(TIMEOUT_SEC);
