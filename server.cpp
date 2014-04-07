@@ -137,11 +137,13 @@ void recvFile(int sockfd){
 			//setup ack
 			response.header.ackNumber = expectedSeq;
 
-			cout << "packet To: " << packet.header.to_IP << ":" << packet.header.to_Port << 
-					" From: " << packet.header.from_IP << ":" << packet.header.from_Port << endl;
-			cout << "response To: " << response.header.to_IP << ":" << response.header.to_Port << 
-					" From: " << response.header.from_IP << ":" << response.header.from_Port << endl;
-			cout << "UIN: " << response.header.UIN << endl;
+			if(verbose){
+				cout << "packet To: " << packet.header.to_IP << ":" << packet.header.to_Port << 
+						" From: " << packet.header.from_IP << ":" << packet.header.from_Port << endl;
+				cout << "response To: " << response.header.to_IP << ":" << response.header.to_Port << 
+						" From: " << response.header.from_IP << ":" << response.header.from_Port << endl;
+				cout << "UIN: " << response.header.UIN << endl;
+			}
 			
 
 			networkizeHeader(&response.header);

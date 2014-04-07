@@ -2,12 +2,14 @@ Matt Dumford - mdumfo2@uic.edu
 
 Client
 ======
-client [server] [port] [relay] [garbleChance] [options]
+client [server] [port] [relay] [relayPort] [clientPort] [garbleChance] [options]
 
 - server - Where you want to send files to. Defaults to localhost.
-- port - The port the server is listening to. Defaults to 54321.
+- port - The port the server is listening to. Defaults to 54323.
 - relay - Address of relay to send files through. Enter "none" to use no relay. Defaults to none.
-- garbleChance - the chance (%) that the relay will garble the data in the packet. This will only work if a relay is being used! Defaults to 0.
+- relayPort - The port the relay is running on. Defaults to 54322
+- clientPort - The port that this client is to run on. Defaults to 54324
+- garbleChance - the chance (%) that the relay will garble/drop/dupe/delay the data in the packet. This will only work if a relay is being used! Defaults to 0.
 
 Options -
 
@@ -24,5 +26,9 @@ Server
 server [port]
 
 - port - The port to listen on. Defaults to 54321.
+
+Options -
+
+- -v, -V - Instructs the server to be more verbose with its output.
 
 If the server is instructed to save a file it recieves, it will save them into the current directory with the name given to the client. It will overwrite files with the same name!
