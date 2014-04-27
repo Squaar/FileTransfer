@@ -33,10 +33,23 @@
 using namespace std;
 
 void alarmHandler(int sig);
-void sendPackets();
+void sendAllPackets();
 void printWindow();
+void printAlarms();
+void printQueue();
+void resetAlarm();
+void sendPacket(int seqNum);
+void sendTheQueue();
+void clean(int seqNum);
 
-std::list<Packet> window;
+typedef struct{
+	time_t sentTime;
+	int seqNum;
+} alarmTimer;
+
+std::list<WindowEntry> window;
+std::list<alarmTimer> alarms;
+std::list<int> sendQueue;
 int sockfd;
 struct sockaddr_in sendAddr;
 int verbose;
@@ -213,6 +226,7 @@ int main(int argc, char *argv[])
 		
 	    int sequenceNumber = 1;
 		int windowPos = 1;
+		int unAckedPacks = 0;
 		int bytesLeft = fileSize; //how many bytes still need to be acked
 		int bytesToPackage = fileSize; 	//how many bytes have been put into packets
 										//(might not be acked yet)
@@ -222,7 +236,7 @@ int main(int argc, char *argv[])
 			Packet packet;
 
 			//create packets
-			while(bytesToPackage > 0 && window.size() < WINDOW_SIZE){
+			while(bytesToPackage > 0 && window.size() < (uint) WINDOW_SIZE){
 				int bytesToSend = (bytesToPackage < BLOCKSIZE) ? bytesToPackage : BLOCKSIZE;
 
 				memset(&packet, 0, sizeof(packet));
@@ -242,7 +256,7 @@ int main(int argc, char *argv[])
 				packet.header.from_Port = atoi(myPort.c_str());
 				packet.header.to_Port = atoi(port.c_str());
 				//put checksum in after everything else
-				packet.header.HW_number = 3;
+				packet.header.HW_number = 4;
 				packet.header.packetType = 1;
 				packet.header.saveFile = saveFile;
 				packet.header.dropChance = atoi(dropChance.c_str());
@@ -250,7 +264,7 @@ int main(int argc, char *argv[])
 				packet.header.garbleChance = atoi(garbleChance.c_str());
 				packet.header.delayChance = atoi(delayChance.c_str());
 				packet.header.windowSize = WINDOW_SIZE;
-				packet.header.protocol = 31;
+				packet.header.protocol = 32;
 
 				const char *ACCC = "mdumfo2";
 	       		memcpy(&packet.header.ACCC, ACCC, strlen(ACCC));
@@ -268,20 +282,30 @@ int main(int argc, char *argv[])
 					exit(-1);
 				}
 
-				networkizeHeader(&packet.header);
-				window.push_back(packet);
+				WindowEntry wEnt;
+				wEnt.seqNum = packet.header.sequenceNumber;
+				wEnt.acked = 0;
+				wEnt.packet = packet;
+
+				unAckedPacks++;
+
+				networkizeHeader(&wEnt.packet.header);
+				window.push_back(wEnt);
 				sequenceNumber++;
 				bytesToPackage -= bytesToSend;
+
+				//add packet to send queue
+				sendQueue.push_back(wEnt.seqNum);
+				cout << "Made " << wEnt.seqNum << endl;
 			}
 
-			//send packets
-			std::list<Packet>::iterator it;
-			sendPackets();
+			printAlarms();
 
+			//send packets
+			sendTheQueue();
+			
 			//recieve responses
-			it = window.begin();
-			int currentWindowSize = window.size();
-			for(int i=0; i<currentWindowSize; i++){
+			for(int i=0; i<unAckedPacks; i++){
 
 				//get response from server
 				struct sockaddr_in responseAddr;
@@ -303,13 +327,20 @@ int main(int argc, char *argv[])
 					if(verbose)
 						cout << "good ack: "  << response.header.ackNumber << endl;
 
-					//for(int j=0; j<response.haeder.ackNumber - windowPos + 1; j++){
-					while(windowPos <= response.header.ackNumber){
-						bytesLeft -= BLOCKSIZE;
-						it = window.erase(it);
-						windowPos++;
-						i++;
-					}	
+					// while(windowPos <= response.header.ackNumber){
+					// 	bytesLeft -= BLOCKSIZE;
+					// 	it = window.erase(it);
+					// 	windowPos++;
+					// 	i++;
+					// }
+
+					std::list<WindowEntry>::iterator it;
+					for(it=window.begin(); it!=window.end(); it++){
+						if((*it).seqNum == response.header.ackNumber){
+							(*it).acked = 1;
+						}
+					}
+	
 				}
 				else{
 					if(verbose){
@@ -320,7 +351,24 @@ int main(int argc, char *argv[])
 						}
 					}
 				}
+			} 
+
+			cout << "done recieving" << endl;
+
+			//remove acked packets from beginning of window
+			std::list<WindowEntry>::iterator it = window.begin();
+			while(it!=window.end()){
+				if(!(*it).acked) //stop when you see the first unacked packet
+					break;
+
+				clean((*it).seqNum);
+
+				bytesLeft -= BLOCKSIZE;
+				it = window.erase(it);
+				windowPos++;
+				unAckedPacks--;
 			}
+
 		}
 
 		//===================================================================================
@@ -337,32 +385,124 @@ int main(int argc, char *argv[])
 }
 
 void alarmHandler(int sig){
-	//resend packets
-	sendPackets();
+	//add packet to queue to be sent 
+	sendQueue.push_back(alarms.front().seqNum);
+	alarms.pop_front();
 	signal(SIGALRM, alarmHandler);
+	resetAlarm();
 }
 
-void sendPackets(){
-	std::list<Packet>::iterator it;
+void sendAllPackets(){
+	std::list<WindowEntry>::iterator it;
 	for(it=window.begin(); it!=window.end(); it++){
-		if(sendto(sockfd, &(*it), sizeof(Packet), 0, (struct sockaddr *) &sendAddr, sizeof(sendAddr)) < 0){
-			perror("error in sendto");
-			exit(-1);
+		if(!(*it).acked){
+			if(sendto(sockfd, &((*it).packet), sizeof(Packet), 0, (struct sockaddr *) &sendAddr, sizeof(sendAddr)) < 0){
+				perror("error in sendto");
+				exit(-1);
+			}
+
+			if(verbose)
+				cout << "Sent: " << ntohl((*it).packet.header.sequenceNumber) << endl;
+
+			// alarmTimer timer;
+			// timer.sentTime = time(NULL);
+			// timer.seqNum = (*it).seqNum;
+
+			alarmTimer timer = {time(NULL), (*it).seqNum};
+
+			alarms.push_back(timer);
+			if(it == window.begin())
+				resetAlarm();
 		}
-
-		if(verbose)
-			cout << "Sent: " << ntohl((*it).header.sequenceNumber) << endl;
-
-		if(it == window.begin())
-			alarm(TIMEOUT_SEC);
 	}
 }
 
 void printWindow(){
-	std::list<Packet>::iterator it;
+	std::list<WindowEntry>::iterator it;
 	cout << "\tCurrent Window: ";
 	for(it=window.begin(); it!=window.end(); it++){
-		cout << ntohl((*it).header.sequenceNumber) << ", ";
+		cout << ntohl((*it).packet.header.sequenceNumber) << ", ";
 	}
 	cout << endl;
+}
+
+void resetAlarm(){
+	if(alarms.empty())
+		return;
+
+	int t = difftime(alarms.front().sentTime + TIMEOUT_SEC, time(NULL));
+	if(t > 0){
+		cout << "setting alarm for " << t << endl;
+		alarm(t);
+	}
+	else{
+		alarm(0); //just do it now if it was already suppposed to happen
+	}
+}
+
+void sendPacket(int seqNum){
+	std::list<WindowEntry>::iterator it;
+	for(it=window.begin(); it!=window.end(); it++){
+		if((*it).seqNum == seqNum){
+			if(sendto(sockfd, &((*it).packet), sizeof(Packet), 0, (struct sockaddr *) &sendAddr, sizeof(sendAddr)) < 0){
+				perror("error in sendto");
+				exit(-1);
+			}
+		
+			if(verbose)
+				cout << "Sent: " << ntohl((*it).packet.header.sequenceNumber) << endl;
+
+			// alarmTimer timer;
+			// timer.sentTime = time(NULL);
+			// timer.seqNum = (*it).seqNum;
+
+			alarmTimer timer = {time(NULL), (*it).seqNum};
+
+			alarms.push_back(timer);
+			if(it == window.begin())
+				resetAlarm();
+
+			return;
+		}
+	}
+}
+
+void sendTheQueue(){
+	std::list<int>::iterator it;
+	for(it=sendQueue.begin(); it!=sendQueue.end(); it++){
+		sendPacket(*it);
+	}
+}
+
+void printAlarms(){
+	std::list<alarmTimer>::iterator it;
+	cout << "\tCurrent alarms: ";
+	for(it=alarms.begin(); it!=alarms.end(); it++){
+		cout << (*it).seqNum << ", ";
+	}
+	cout << endl;
+}
+
+void printQueue(){
+	std::list<int>::iterator it;
+	cout << "\tCurrent Window: ";
+	for(it=sendQueue.begin(); it!=sendQueue.end(); it++){
+		cout << *it << ", ";
+	}
+	cout << endl;
+}
+
+void clean(int seqNum){
+	std::list<alarmTimer>::iterator it;
+	it = alarms.begin();
+	while(it != alarms.end()){
+		if((*it).seqNum == seqNum){
+			it = alarms.erase(it);
+			if(it == alarms.begin())
+				resetAlarm();
+		}
+		else
+			it++;
+	}
+	sendQueue.remove(seqNum);
 }

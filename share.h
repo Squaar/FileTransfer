@@ -1,6 +1,12 @@
 #ifndef SHARE_H
     #define SHARE_H
 
+    typedef struct {
+        Packet packet;
+        int seqNum;
+        int acked;
+    } WindowEntry;
+
 	void networkizeHeader(CS450Header *header){
         header->version = htonl(header->version);
         header->UIN = htonl(header->UIN);
