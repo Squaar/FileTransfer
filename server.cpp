@@ -24,6 +24,7 @@
 #include <fstream>
 #include <unistd.h>
 #include <iomanip>
+#include <list>
 
 #include "CS450Header.h"
 #include "share.h"
@@ -34,6 +35,7 @@ int verbose;
 
 void recvFile(int sockfd);
 Packet flipAddresses(Packet packet);
+bool compare_seq(const Packet& pack1, const Packet& pack2);
 
 int main(int argc, char *argv[])
 {
@@ -80,12 +82,14 @@ int main(int argc, char *argv[])
 
 void recvFile(int sockfd){
 	int bytesLeft;
-	int expectedSeq = 1;
 	int32_t UIN;
 	int32_t transactionNumber;
 	int saveFile = 0;
 	double percent = 0;
 	ofstream save;
+	int windowSize;
+	int windowPos = 1;
+	std::list<Packet> window;
 
 	//sockaddr_in for recieving packets
 	struct sockaddr_in recvAddr;
@@ -116,26 +120,27 @@ void recvFile(int sockfd){
 		//set up response packet
 		Packet response = flipAddresses(packet);
 
-		if(checksum != 0 || packet.header.sequenceNumber != expectedSeq){ //bad checksum -- send nak and just treat next packet as new file
-			response.header.ackNumber = 0;
+		// if(checksum != 0 || packet.header.sequenceNumber != 1){ //bad checksum -- send nak and just treat next packet as new file
+		// 	response.header.ackNumber = 0;
 
-			networkizeHeader(&response.header);
+		// 	networkizeHeader(&response.header);
 
-			if(verbose){
-				if(checksum !=0)
-					cout << "Bad checksum.\n" << flush;
-				else
-					cout << "Bad sequence number.\n" << flush;
-			}
+		// 	if(verbose){
+		// 		if(checksum !=0)
+		// 			cout << "Bad checksum.\n" << flush;
+		// 		else
+		// 			cout << "Bad sequence number.\n" << flush;
+		// 	}
 
-			if(sendto(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &recvAddr, recvAddrLen) < 0){
-				perror("error in sendto");
-				exit(-1);
-			}
-		}
-		else{ //good checksum
+		// 	if(sendto(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &recvAddr, recvAddrLen) < 0){
+		// 		perror("error in sendto");
+		// 		exit(-1);
+		// 	}
+		// }
+		//else{
+		if(checksum == 0 && packet.header.sequenceNumber == 1){ //good checksum
 			//setup ack
-			response.header.ackNumber = expectedSeq;
+			response.header.ackNumber = 1;
 
 			if(verbose){
 				cout << "packet To: " << packet.header.to_IP << ":" << packet.header.to_Port << 
@@ -155,11 +160,12 @@ void recvFile(int sockfd){
 			}
 
 			bytesLeft = packet.header.nTotalBytes - packet.header.nbytes;
-			expectedSeq++;
 			UIN = packet.header.UIN;
 			transactionNumber = packet.header.transactionNumber;
 			saveFile = packet.header.saveFile;
 			percent += ((double) packet.header.nbytes / (double) packet.header.nTotalBytes)*100.0;
+			windowSize = packet.header.windowSize;
+			windowPos++;
 
 			if(verbose)
 				cout << fixed << setprecision(2) << percent << "%" << endl;
@@ -192,34 +198,40 @@ void recvFile(int sockfd){
 					response = flipAddresses(packet);
 
 					//bad packet
-					if(checksum != 0 || packet.header.UIN != UIN 
-							|| packet.header.transactionNumber != transactionNumber
-							|| packet.header.sequenceNumber != expectedSeq)
-					{ 
-						response.header.ackNumber = expectedSeq-1;
+					// if(checksum != 0 || packet.header.UIN != UIN 
+					// 		|| packet.header.transactionNumber != transactionNumber
+					// 		|| packet.header.sequenceNumber < windowPos
+					// 		|| packet.header.sequenceNumber > windowPos + windowSize)
+					// { 
+					// 	response.header.ackNumber = expectedSeq-1;
 
-						networkizeHeader(&response.header);
+					// 	networkizeHeader(&response.header);
 
-						if(verbose){
-							if(checksum != 0)
-								cout << "Bad packet.\n" << flush;
-							else if(packet.header.UIN != UIN)
-								cout << "Bad UIN.\n" << flush;
-							else if(packet.header.transactionNumber != transactionNumber)
-								cout << "Bad transaction number.\n" << flush;
-							else
-								cout << "Bad seq: " << packet.header.sequenceNumber << 
-										" expected: " << expectedSeq << endl;
-						}
+					// 	if(verbose){
+					// 		if(checksum != 0)
+					// 			cout << "Bad packet.\n" << flush;
+					// 		else if(packet.header.UIN != UIN)
+					// 			cout << "Bad UIN.\n" << flush;
+					// 		else if(packet.header.transactionNumber != transactionNumber)
+					// 			cout << "Bad transaction number.\n" << flush;
+					// 		else
+					// 			cout << "Bad seq: " << packet.header.sequenceNumber << 
+					// 					" expected: " << expectedSeq << endl;
+					// 	}
 
-						if(sendto(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &recvAddr, sizeof(recvAddr)) < 0){
-							perror("error in sendto");
-							exit(-1);
-						}
-					}
+					// 	if(sendto(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &recvAddr, sizeof(recvAddr)) < 0){
+					// 		perror("error in sendto");
+					// 		exit(-1);
+					// 	}
+					// }
 					//good packet
-					else{
-						response.header.ackNumber = expectedSeq;
+					//else{
+					if(checksum == 0 && packet.header.UIN == UIN 
+							&& packet.header.transactionNumber == transactionNumber
+							&& packet.header.sequenceNumber >= windowPos
+							&& packet.header.sequenceNumber < windowPos + windowSize)
+					{
+						response.header.ackNumber = packet.header.sequenceNumber;
 
 						networkizeHeader(&response.header);
 
@@ -230,14 +242,20 @@ void recvFile(int sockfd){
 						}
 
 						bytesLeft -= packet.header.nbytes;
-						expectedSeq++;
 						percent += ((double) packet.header.nbytes / (double) packet.header.nTotalBytes)*100.0;
 
 						if(verbose)
 							cout << fixed << setprecision(2) << percent << "%" << endl;
 
-						if(saveFile){
-							save.write(packet.data, packet.header.nbytes);
+						window.push_back(packet);
+						window.sort(compare_seq);
+
+						while(window.front().header.sequenceNumber == windowPos){
+							if(saveFile){
+								save.write(window.front().data, window.front().header.nbytes);
+							}
+							windowPos++;
+							window.pop_front();
 						}
 					}
 				}
@@ -262,4 +280,8 @@ Packet flipAddresses(Packet packet){
 	flipped.header.trueFromIP = packet.header.trueToIP;
 	flipped.header.packetType = 2;
 	return flipped;
+}
+
+bool compare_seq(const Packet& pack1, const Packet& pack2){
+	return pack1.header.sequenceNumber < pack2.header.sequenceNumber;
 }
