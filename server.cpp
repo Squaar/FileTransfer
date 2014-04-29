@@ -120,24 +120,8 @@ void recvFile(int sockfd){
 		//set up response packet
 		Packet response = flipAddresses(packet);
 
-		// if(checksum != 0 || packet.header.sequenceNumber != 1){ //bad checksum -- send nak and just treat next packet as new file
-		// 	response.header.ackNumber = 0;
+		cout << "Packet: " << packet.header.sequenceNumber << endl;
 
-		// 	networkizeHeader(&response.header);
-
-		// 	if(verbose){
-		// 		if(checksum !=0)
-		// 			cout << "Bad checksum.\n" << flush;
-		// 		else
-		// 			cout << "Bad sequence number.\n" << flush;
-		// 	}
-
-		// 	if(sendto(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &recvAddr, recvAddrLen) < 0){
-		// 		perror("error in sendto");
-		// 		exit(-1);
-		// 	}
-		// }
-		//else{
 		if(checksum == 0 && packet.header.sequenceNumber == 1){ //good checksum
 			//setup ack
 			response.header.ackNumber = 1;
@@ -189,6 +173,8 @@ void recvFile(int sockfd){
 				else{
 					deNetworkizeHeader(&packet.header);
 
+					cout << "Packet: " << packet.header.sequenceNumber << endl;
+
 					// if(verbose)
 					// 	cout << "Received packet\n" << flush;
 
@@ -197,38 +183,9 @@ void recvFile(int sockfd){
 					//set up response packet
 					response = flipAddresses(packet);
 
-					//bad packet
-					// if(checksum != 0 || packet.header.UIN != UIN 
-					// 		|| packet.header.transactionNumber != transactionNumber
-					// 		|| packet.header.sequenceNumber < windowPos
-					// 		|| packet.header.sequenceNumber > windowPos + windowSize)
-					// { 
-					// 	response.header.ackNumber = expectedSeq-1;
-
-					// 	networkizeHeader(&response.header);
-
-					// 	if(verbose){
-					// 		if(checksum != 0)
-					// 			cout << "Bad packet.\n" << flush;
-					// 		else if(packet.header.UIN != UIN)
-					// 			cout << "Bad UIN.\n" << flush;
-					// 		else if(packet.header.transactionNumber != transactionNumber)
-					// 			cout << "Bad transaction number.\n" << flush;
-					// 		else
-					// 			cout << "Bad seq: " << packet.header.sequenceNumber << 
-					// 					" expected: " << expectedSeq << endl;
-					// 	}
-
-					// 	if(sendto(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &recvAddr, sizeof(recvAddr)) < 0){
-					// 		perror("error in sendto");
-					// 		exit(-1);
-					// 	}
-					// }
-					//good packet
-					//else{
 					if(checksum == 0 && packet.header.UIN == UIN 
 							&& packet.header.transactionNumber == transactionNumber
-							&& packet.header.sequenceNumber >= windowPos
+							&& packet.header.sequenceNumber >= windowPos - windowSize
 							&& packet.header.sequenceNumber < windowPos + windowSize)
 					{
 						response.header.ackNumber = packet.header.sequenceNumber;
@@ -241,25 +198,45 @@ void recvFile(int sockfd){
 							exit(-1);
 						}
 
-						bytesLeft -= packet.header.nbytes;
-						percent += ((double) packet.header.nbytes / (double) packet.header.nTotalBytes)*100.0;
+						if(packet.header.sequenceNumber >= windowPos){
+							bytesLeft -= packet.header.nbytes;
+							percent += ((double) packet.header.nbytes / (double) packet.header.nTotalBytes)*100.0;
 
-						if(verbose)
-							cout << fixed << setprecision(2) << percent << "%" << endl;
+							if(verbose)
+								cout << fixed << setprecision(2) << percent << "%" << endl;
 
-						window.push_back(packet);
-						window.sort(compare_seq);
+							window.push_back(packet);
+							window.sort(compare_seq);
 
-						while(window.front().header.sequenceNumber == windowPos){
-							if(saveFile){
-								save.write(window.front().data, window.front().header.nbytes);
+							while(window.front().header.sequenceNumber == windowPos){
+								if(saveFile){
+									save.write(window.front().data, window.front().header.nbytes);
+								}
+								windowPos++;
+								window.pop_front();
 							}
-							windowPos++;
-							window.pop_front();
 						}
+					}
+					else{
+						cout << "Bad packet: ";
+						if(checksum != 0)
+							cout << "bad checksum" << endl;
+						else if(packet.header.UIN != UIN)
+							cout << "bad UIN" << endl;
+						else if(packet.header.transactionNumber != transactionNumber)
+							cout << "bad transaction number" << endl;
+						else if(packet.header.sequenceNumber < windowPos - windowSize)
+							cout << "bad sequence number: " << packet.header.sequenceNumber << endl;
+						else if(packet.header.sequenceNumber >= windowPos + windowSize)
+							cout << "bad sequence number: " << packet.header.sequenceNumber << endl;
+						else
+							cout << "unknown" << endl;
 					}
 				}
 			}	
+		}
+		else{
+			cout << "Bad packet for new file." << endl;
 		}
 	}
 	if(saveFile){
