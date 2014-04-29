@@ -188,6 +188,7 @@ void recvFile(int sockfd){
 							&& packet.header.sequenceNumber >= windowPos - windowSize
 							&& packet.header.sequenceNumber < windowPos + windowSize)
 					{
+						cout << "good packet." << endl;
 						response.header.ackNumber = packet.header.sequenceNumber;
 
 						networkizeHeader(&response.header);
@@ -199,11 +200,7 @@ void recvFile(int sockfd){
 						}
 
 						if(packet.header.sequenceNumber >= windowPos){
-							bytesLeft -= packet.header.nbytes;
-							percent += ((double) packet.header.nbytes / (double) packet.header.nTotalBytes)*100.0;
-
-							if(verbose)
-								cout << fixed << setprecision(2) << percent << "%" << endl;
+							cout << "windowpos: " << windowPos << endl;
 
 							window.push_back(packet);
 							window.sort(compare_seq);
@@ -212,6 +209,13 @@ void recvFile(int sockfd){
 								if(saveFile){
 									save.write(window.front().data, window.front().header.nbytes);
 								}
+								
+								bytesLeft -= window.front().header.nbytes;
+								percent += ((double) window.front().header.nbytes / (double) window.front().header.nTotalBytes)*100.0;
+
+								if(verbose)
+									cout << fixed << setprecision(2) << percent << "%" << endl;
+
 								windowPos++;
 								window.pop_front();
 							}
