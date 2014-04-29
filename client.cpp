@@ -49,7 +49,7 @@ typedef struct{
 
 std::list<WindowEntry> window;
 std::list<alarmTimer> alarms;
-std::list<int> sendQueue;
+//std::list<int> sendQueue;
 int sockfd;
 struct sockaddr_in sendAddr;
 int verbose;
@@ -221,6 +221,11 @@ int main(int argc, char *argv[])
 			6. set new timer for every oldest packet.
 		*/
 
+		// struct timeval tv;
+		// tv.tv_sec = 3; // 3 seconds
+		// tv.tv_usec = 0;
+		// setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char *) &tv, sizeof(struct timeval));
+
 		//set up alarm
 		signal(SIGALRM, alarmHandler);
 		
@@ -295,17 +300,21 @@ int main(int argc, char *argv[])
 				bytesToPackage -= bytesToSend;
 
 				//add packet to send queue
-				sendQueue.push_back(wEnt.seqNum);
+				sendPacket(wEnt.seqNum);
 				cout << "Made " << wEnt.seqNum << endl;
 			}
 
 			printAlarms();
+			printWindow();
 
 			//send packets
-			sendTheQueue();
+			//sendTheQueue();
 			
+
+			cout << "Waiting for responses" << endl;
 			//recieve responses
-			for(int i=0; i<unAckedPacks; i++){
+			int currentUnAckedPacks = unAckedPacks;
+			for(int i=0; i<currentUnAckedPacks; i++){
 
 				//get response from server
 				struct sockaddr_in responseAddr;
@@ -314,7 +323,6 @@ int main(int argc, char *argv[])
 				socklen_t responseAddrLen = sizeof(responseAddr);
 
 				int readBytes = recvfrom(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &responseAddr, &responseAddrLen);
-
 				if(readBytes < 0){
 					perror("Error in recvfrom");
 					cout << "Bytes recieved: " << readBytes << endl;
@@ -325,19 +333,13 @@ int main(int argc, char *argv[])
 
 				if(response.header.ackNumber >= windowPos && response.header.ackNumber < windowPos + WINDOW_SIZE){
 					if(verbose)
-						cout << "good ack: "  << response.header.ackNumber << endl;
-
-					// while(windowPos <= response.header.ackNumber){
-					// 	bytesLeft -= BLOCKSIZE;
-					// 	it = window.erase(it);
-					// 	windowPos++;
-					// 	i++;
-					// }
+						cout << "good ack: " << response.header.ackNumber << endl;
 
 					std::list<WindowEntry>::iterator it;
 					for(it=window.begin(); it!=window.end(); it++){
 						if((*it).seqNum == response.header.ackNumber){
 							(*it).acked = 1;
+							unAckedPacks--;
 						}
 					}
 	
@@ -366,7 +368,7 @@ int main(int argc, char *argv[])
 				bytesLeft -= BLOCKSIZE;
 				it = window.erase(it);
 				windowPos++;
-				unAckedPacks--;
+				//unAckedPacks--;
 			}
 
 		}
@@ -386,7 +388,9 @@ int main(int argc, char *argv[])
 
 void alarmHandler(int sig){
 	//add packet to queue to be sent 
-	sendQueue.push_back(alarms.front().seqNum);
+	cout << "Alarm caught" << endl;
+	//sendQueue.push_back(alarms.front().seqNum);
+	sendPacket(alarms.front().seqNum);
 	alarms.pop_front();
 	signal(SIGALRM, alarmHandler);
 	resetAlarm();
@@ -427,8 +431,14 @@ void printWindow(){
 }
 
 void resetAlarm(){
-	if(alarms.empty())
+	cout << "resetting alarm" << endl;
+	printAlarms();
+	printWindow();
+	if(alarms.empty()){
+		cout << "No alarms" << endl;
+		printWindow();
 		return;
+	}
 
 	int t = difftime(alarms.front().sentTime + TIMEOUT_SEC, time(NULL));
 	if(t > 0){
@@ -436,7 +446,8 @@ void resetAlarm(){
 		alarm(t);
 	}
 	else{
-		alarm(0); //just do it now if it was already suppposed to happen
+		cout << "Insta alarm!" << endl;
+		alarm(1); //just do it now if it was already suppposed to happen
 	}
 }
 
@@ -459,7 +470,7 @@ void sendPacket(int seqNum){
 			alarmTimer timer = {time(NULL), (*it).seqNum};
 
 			alarms.push_back(timer);
-			if(it == window.begin())
+			//if(it == window.begin())
 				resetAlarm();
 
 			return;
@@ -467,12 +478,12 @@ void sendPacket(int seqNum){
 	}
 }
 
-void sendTheQueue(){
-	std::list<int>::iterator it;
-	for(it=sendQueue.begin(); it!=sendQueue.end(); it++){
-		sendPacket(*it);
-	}
-}
+// void sendTheQueue(){
+// 	std::list<int>::iterator it;
+// 	for(it=sendQueue.begin(); it!=sendQueue.end(); it++){
+// 		sendPacket(*it);
+// 	}
+// }
 
 void printAlarms(){
 	std::list<alarmTimer>::iterator it;
@@ -483,14 +494,14 @@ void printAlarms(){
 	cout << endl;
 }
 
-void printQueue(){
-	std::list<int>::iterator it;
-	cout << "\tCurrent Window: ";
-	for(it=sendQueue.begin(); it!=sendQueue.end(); it++){
-		cout << *it << ", ";
-	}
-	cout << endl;
-}
+// void printQueue(){
+// 	std::list<int>::iterator it;
+// 	cout << "\tCurrent Window: ";
+// 	for(it=sendQueue.begin(); it!=sendQueue.end(); it++){
+// 		cout << *it << ", ";
+// 	}
+// 	cout << endl;
+// }
 
 void clean(int seqNum){
 	std::list<alarmTimer>::iterator it;
@@ -498,11 +509,11 @@ void clean(int seqNum){
 	while(it != alarms.end()){
 		if((*it).seqNum == seqNum){
 			it = alarms.erase(it);
-			if(it == alarms.begin())
+			//if(it == alarms.begin())
 				resetAlarm();
 		}
 		else
 			it++;
 	}
-	sendQueue.remove(seqNum);
+	//sendQueue.remove(seqNum);
 }
