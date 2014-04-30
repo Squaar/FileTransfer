@@ -304,14 +304,14 @@ int main(int argc, char *argv[])
 				cout << "Made " << wEnt.seqNum << endl;
 			}
 
-			printAlarms();
-			printWindow();
+			//printAlarms();
+			//printWindow();
 
 			//send packets
 			//sendTheQueue();
 			
 
-			cout << "Waiting for responses" << endl;
+			//cout << "Waiting for responses" << endl;
 			//recieve responses
 			int currentUnAckedPacks = unAckedPacks;
 			for(int i=0; i<currentUnAckedPacks; i++){
@@ -347,15 +347,14 @@ int main(int argc, char *argv[])
 				else{
 					if(verbose){
 						if(response.header.ackNumber != windowPos){
-							cout << "Bad ack: " << response.header.ackNumber << " expected: " 
-								<< windowPos << endl;
+							cout << "Bad ack: " << response.header.ackNumber << endl;
 							//printWindow();
 						}
 					}
 				}
 			} 
 
-			cout << "done recieving" << endl;
+			//cout << "done recieving" << endl;
 
 			//remove acked packets from beginning of window
 			std::list<WindowEntry>::iterator it = window.begin();
@@ -379,7 +378,7 @@ int main(int argc, char *argv[])
 
 		double seconds = difftime(time(NULL), timer);
 
-		cout << seconds << " seconds. (" << seconds/fileSize << " Bytes per second)\n";
+		cout << seconds << " seconds. (" << fileSize/seconds << " Bytes per second)\n";
 		transactionNumber++;
 
 	}while(persistent);    
@@ -431,22 +430,22 @@ void printWindow(){
 }
 
 void resetAlarm(){
-	cout << "resetting alarm" << endl;
-	printAlarms();
-	printWindow();
+	//cout << "resetting alarm" << endl;
+	//printAlarms();
+	//printWindow();
 	if(alarms.empty()){
-		cout << "No alarms" << endl;
-		printWindow();
+		//cout << "No alarms" << endl;
+		//printWindow();
 		return;
 	}
 
 	int t = difftime(alarms.front().sentTime + TIMEOUT_SEC, time(NULL));
 	if(t > 0){
-		cout << "setting alarm for " << t << endl;
+		//cout << "setting alarm for " << t << endl;
 		alarm(t);
 	}
 	else{
-		cout << "Insta alarm!" << endl;
+		//cout << "Insta alarm!" << endl;
 		alarm(1); //just do it now if it was already suppposed to happen
 	}
 }

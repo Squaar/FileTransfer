@@ -277,11 +277,12 @@ bool compare_seq(const Packet& pack1, const Packet& pack2){
 
 void printWindow(std::list<Packet> window){
 	std::list<Packet>::iterator it;
-	if(verbose)
-		cout << "\tCurrent Window: ";
+	// if(verbose)
+	// 	cout << "\tCurrent Window: ";
 	for(it=window.begin(); it!= window.end(); it++)
-		if(verbose)
-			cout << (*it).header.sequenceNumber << ", "; 
-	if(verbose)
-		cout << endl;
+		;
+		// if(verbose)
+			// cout << (*it).header.sequenceNumber << ", "; 
+	// if(verbose)
+		// cout << endl;
 }
