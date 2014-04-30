@@ -113,15 +113,14 @@ void recvFile(int sockfd){
 
 		deNetworkizeHeader(&packet.header);
 
-		// if(verbose)
-		// 	cout << "Received packet\n" << flush;
+		if(verbose)
+			cout << "Received packet\n" << flush;
 
 		int checksum = calcChecksum((void *) &packet, sizeof(Packet));
  
 		//set up response packet
 		Packet response = flipAddresses(packet);
 
-		cout << "Packet: " << packet.header.sequenceNumber << endl;
 
 		if(checksum == 0 && packet.header.sequenceNumber == 1){ //good checksum
 			//setup ack
@@ -174,10 +173,8 @@ void recvFile(int sockfd){
 				else{
 					deNetworkizeHeader(&packet.header);
 
-					cout << "Packet: " << packet.header.sequenceNumber << endl;
-
-					// if(verbose)
-					// 	cout << "Received packet\n" << flush;
+					if(verbose)
+						cout << "Received packet" << endl;
 
 					checksum = calcChecksum((void *) &packet, sizeof(Packet));
 
@@ -189,7 +186,8 @@ void recvFile(int sockfd){
 							&& packet.header.sequenceNumber >= windowPos - windowSize
 							&& packet.header.sequenceNumber < windowPos + windowSize)
 					{
-						cout << "good packet." << endl;
+						if(verbose)
+							cout << "good packet." << endl;
 						response.header.ackNumber = packet.header.sequenceNumber;
 
 						networkizeHeader(&response.header);
@@ -201,7 +199,8 @@ void recvFile(int sockfd){
 						}
 
 						if(packet.header.sequenceNumber >= windowPos){
-							cout << "windowpos: " << windowPos << endl;
+							if(verbose)
+								cout << "windowpos: " << windowPos << endl;
 
 							window.push_back(packet);
 							window.sort(compare_seq);
@@ -226,19 +225,21 @@ void recvFile(int sockfd){
 						}
 					}
 					else{
-						cout << "Bad packet: ";
-						if(checksum != 0)
-							cout << "bad checksum" << endl;
-						else if(packet.header.UIN != UIN)
-							cout << "bad UIN" << endl;
-						else if(packet.header.transactionNumber != transactionNumber)
-							cout << "bad transaction number" << endl;
-						else if(packet.header.sequenceNumber < windowPos - windowSize)
-							cout << "bad sequence number: " << packet.header.sequenceNumber << endl;
-						else if(packet.header.sequenceNumber >= windowPos + windowSize)
-							cout << "bad sequence number: " << packet.header.sequenceNumber << endl;
-						else
-							cout << "unknown" << endl;
+						if(verbose){
+							cout << "Bad packet: ";
+							if(checksum != 0)
+								cout << "bad checksum" << endl;
+							else if(packet.header.UIN != UIN)
+								cout << "bad UIN" << endl;
+							else if(packet.header.transactionNumber != transactionNumber)
+								cout << "bad transaction number" << endl;
+							else if(packet.header.sequenceNumber < windowPos - windowSize)
+								cout << "bad sequence number: " << packet.header.sequenceNumber << endl;
+							else if(packet.header.sequenceNumber >= windowPos + windowSize)
+								cout << "bad sequence number: " << packet.header.sequenceNumber << endl;
+							else
+								cout << "unknown" << endl;
+						}
 					}
 				}
 			}	
@@ -251,6 +252,9 @@ void recvFile(int sockfd){
 		save.flush();
 		save.close();
 		cout << "File saved: " << packet.header.filename << "(" << packet.header.nTotalBytes << " bytes)" << endl;
+	}
+	else{
+		cout << "File transfer complete: " << packet.header.nTotalBytes << " bytes recieved." << endl;
 	}
 
 }
@@ -273,8 +277,11 @@ bool compare_seq(const Packet& pack1, const Packet& pack2){
 
 void printWindow(std::list<Packet> window){
 	std::list<Packet>::iterator it;
-	cout << "\tCurrent Window: ";
+	if(verbose)
+		cout << "\tCurrent Window: ";
 	for(it=window.begin(); it!= window.end(); it++)
-		cout << (*it).header.sequenceNumber << ", "; 
-	cout << endl;
+		if(verbose)
+			cout << (*it).header.sequenceNumber << ", "; 
+	if(verbose)
+		cout << endl;
 }
