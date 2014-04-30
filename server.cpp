@@ -36,6 +36,7 @@ int verbose;
 void recvFile(int sockfd);
 Packet flipAddresses(Packet packet);
 bool compare_seq(const Packet& pack1, const Packet& pack2);
+void printWindow(std::list<Packet> window);
 
 int main(int argc, char *argv[])
 {
@@ -206,6 +207,9 @@ void recvFile(int sockfd){
 							window.sort(compare_seq);
 
 							while(window.front().header.sequenceNumber == windowPos){
+
+								printWindow(window);
+
 								if(saveFile){
 									save.write(window.front().data, window.front().header.nbytes);
 								}
@@ -265,4 +269,12 @@ Packet flipAddresses(Packet packet){
 
 bool compare_seq(const Packet& pack1, const Packet& pack2){
 	return pack1.header.sequenceNumber < pack2.header.sequenceNumber;
+}
+
+void printWindow(std::list<Packet> window){
+	std::list<Packet>::iterator it;
+	cout << "\tCurrent Window: ";
+	for(it=window.begin(); it!= window.end(); it++)
+		cout << (*it).header.sequenceNumber << ", "; 
+	cout << endl;
 }
