@@ -23,7 +23,7 @@ The user will be asked for a file to send once the client is started up.
 
 Server
 ======
-server [port]
+server [port] [options]
 
 - port - The port to listen on. Defaults to 54321.
 
@@ -32,3 +32,8 @@ Options -
 - -v, -V - Instructs the server to be more verbose with its output.
 
 If the server is instructed to save a file it recieves, it will save them into the current directory with the name given to the client. It will overwrite files with the same name!
+
+Known Problems
+==============
+
+- The client/server will not work with a garble chance higher than 0%
